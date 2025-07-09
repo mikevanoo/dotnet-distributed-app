@@ -2,12 +2,12 @@ using Microsoft.Extensions.Logging;
 
 namespace DotNetDistributedApp.IntegrationTests;
 
-public class WeatherForecastTests
+public class WeatherTests
 {
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(30);
 
     [Fact]
-    public async Task GetWeatherForecastReturns200Ok()
+    public async Task GetWeatherStationsReturns200Ok()
     {
         // Arrange
         var cancellationToken = new CancellationTokenSource(DefaultTimeout).Token;
@@ -31,7 +31,7 @@ public class WeatherForecastTests
         // Act
         var httpClient = app.CreateHttpClient("api");
         await app.ResourceNotifications.WaitForResourceHealthyAsync("api", cancellationToken).WaitAsync(DefaultTimeout, cancellationToken);
-        var response = await httpClient.GetAsync("/weatherforecast", cancellationToken);
+        var response = await httpClient.GetAsync("/weather/stations", cancellationToken);
     
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);

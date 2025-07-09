@@ -1,4 +1,8 @@
+using DotNetDistributedApp.Api.Data.Weather;
+using DotNetDistributedApp.Api.Weather;
 using DotNetDistributedApp.ServiceDefaults;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -7,9 +11,23 @@ builder.AddServiceDefaults();
 
 // Add services to the container.
 builder.Services.AddProblemDetails();
-
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+
+builder.Services.AddDbContextPool<WeatherDbContext>(options =>
+{
+    var connectionString = builder.Configuration.GetConnectionString("api-database")
+                           ?? throw new InvalidOperationException("Connection string 'api-database' not found.");
+    options
+        .UseNpgsql(
+            connectionString,
+            x => x
+                .MigrationsHistoryTable("__efmigrationshistory", "public")
+                .CommandTimeout((int)TimeSpan.FromMinutes(5).TotalSeconds)
+            )
+        .UseNpgsql(connectionString)
+        .UseSnakeCaseNamingConvention();
+});
+builder.Services.AddScoped<WeatherService>();
 
 var app = builder.Build();
 
@@ -25,27 +43,9 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-string[] summaries = ["Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"];
-
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast = Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
+app.MapGet("/weather/stations", async ([FromServices] WeatherService weatherService) => 
+    await weatherService.GetWeatherStations());
 
 app.MapDefaultEndpoints();
 
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}

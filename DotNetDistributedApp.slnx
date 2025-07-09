@@ -1,0 +1,9 @@
+﻿<Solution>
+  <Folder Name="/Files/">
+    <File Path=".gitignore" />
+    <File Path="README.md" />
+  </Folder>
+  <Project Path="src\DotNetDistributedApp.Api\DotNetDistributedApp.Api.csproj" Type="Classic C#" />
+  <Project Path="src\DotNetDistributedApp.AppHost\DotNetDistributedApp.AppHost.csproj" Type="Classic C#" />
+  <Project Path="src\DotNetDistributedApp.ServiceDefaults\DotNetDistributedApp.ServiceDefaults.csproj" Type="Classic C#" />
+</Solution>

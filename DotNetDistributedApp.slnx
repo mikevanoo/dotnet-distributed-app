@@ -1,9 +1,14 @@
 ﻿<Solution>
-  <Folder Name="/Files/">
+  <Folder Name="/files/">
     <File Path=".gitignore" />
     <File Path="README.md" />
   </Folder>
-  <Project Path="src\DotNetDistributedApp.Api\DotNetDistributedApp.Api.csproj" Type="Classic C#" />
-  <Project Path="src\DotNetDistributedApp.AppHost\DotNetDistributedApp.AppHost.csproj" Type="Classic C#" />
-  <Project Path="src\DotNetDistributedApp.ServiceDefaults\DotNetDistributedApp.ServiceDefaults.csproj" Type="Classic C#" />
+  <Folder Name="/src/">
+    <Project Path="src\DotNetDistributedApp.Api\DotNetDistributedApp.Api.csproj" Type="Classic C#" />
+    <Project Path="src\DotNetDistributedApp.AppHost\DotNetDistributedApp.AppHost.csproj" Type="Classic C#" />
+    <Project Path="src\DotNetDistributedApp.ServiceDefaults\DotNetDistributedApp.ServiceDefaults.csproj" Type="Classic C#" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests\DotNetDistributedApp.IntegrationTests\DotNetDistributedApp.IntegrationTests.csproj" Type="Classic C#" />
+  </Folder>
 </Solution>

@@ -1,16 +1,11 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
-// var cache = builder.AddRedis("cache");
-
-var apiService = builder.AddProject<Projects.DotNetDistributedApp_Api>("api")
-    .WithHttpHealthCheck("/health");
-
-// builder.AddProject<Projects.AspireSample_Web>("webfrontend")
-//     .WithExternalHttpEndpoints()
-//     .WithHttpHealthCheck("/health")
-//     .WithReference(cache)
-//     .WaitFor(cache)
-//     .WithReference(apiService)
-//     .WaitFor(apiService);
+var api = builder.AddProject<Projects.DotNetDistributedApp_Api>("api")
+    .WithHttpHealthCheck("/health")
+    .WithUrlForEndpoint("https", url =>
+    {
+        url.DisplayText = "Swagger UI";
+        url.Url = "/swagger";
+    });;
 
 builder.Build().Run();

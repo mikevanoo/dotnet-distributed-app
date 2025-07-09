@@ -56,3 +56,4 @@ nunit-*.xml
 # JetBrains Rider
 .idea/
 *.sln.iml
+/DotNetDistributedApp.sln.DotSettings.user

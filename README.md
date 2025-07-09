@@ -1,1 +1,33 @@
-# dotnet-distributed-app
+# .NET Distributed Application
+
+## Overview
+Sample application using .NET to test and demonstrate techniques/patterns to use when building a real-world distributed application.
+
+I have various goals for this project (listed below) where each demonstrates or contributes towards a feature needed when building a real-world distributed application.
+Some goals have value just within themselves. Some goals will also drive out other useful best practice patterns.
+
+<!-- Use &#x2610; for unticked, &#x2611; for ticked --> 
+
+| Goals                                                                                                     | Implementation                                                                                                                |
+|-----------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------|
+| &#x2610; Has its own RESTful API                                                                          | Simple minimal API (weather?)                                                                                                 |
+| &#x2610; Has its own data store (SQL or non-SQL)                                                          | Postgres; import weather data?                                                                                                |
+| &#x2610; Make use of an upstream RESTful API (i.e., another microservice)                                 | Enrich location/weather with data from other service                                                                          |
+| &#x2610; Make use of a third party external API                                                           | Something available as Docker container?                                                                                      |
+| &#x2610; Make use of asynchronous messaging                                                               | Kafka; create consumer process                                                                                                |
+| &#x2610; Use different caching strategies                                                                 | Cache-Aside using Redis                                                                                                       |
+| &#x2610; Use appropriate levels of testing, i.e., unit, integration, end-to-end                           | As appropriate                                                                                                                |
+| &#x2610; Resilience: Calls to the data store retry on failure                                             | Can EF Core do this?                                                                                                          |
+| &#x2610; Resilience: Calls to other APIs retry on failure                                                 | HttpClient + Polly                                                                                                            |
+| &#x2610; Resilience: Consuming asynchronous messages retry on failure                                     | With Kafka the consumer needs the logic; have an out-of-order topic with its own consumer which push back to the target topic |
+| &#x2610; Resilience: Should use appropriate strategies,  i.e., exponential backoff, circuit-breaker, etc. | Polly can do this. What about EF Core?                                                                                        |
+| &#x2610; Logging: Use structured logging                                                                  | Serilog                                                                                                                       |
+| &#x2610; Logging: Trace a single request across multiple services                                         | HttpClient can do this. What about EF Core and Kafka client?                                                                  |
+| &#x2610; Logging: View, search and filter logs                                                            | Aspire dashboard initially, then Prometheus + Graphana.                                                                       |
+| &#x2610; Metrics: Record standard, out-of-the-box metrics                                                 | Aspire + OpenTelemetry                                                                                                        |
+| &#x2610; Metrics: Record custom metrics                                                                   | OpenTelemetry + [.NET custom metrics](https://opentelemetry.io/docs/zero-code/dotnet/custom/)                                 |
+| &#x2610; Metrics: Visualise and filter metrics                                                            | Aspire dashboard initially, then Prometheus + Graphana.                                                                       |
+| &#x2610; Developer inner-loop: All components be easily deployed locally                                  | Aspire                                                                                                                        |
+| &#x2610; Deployment: All components be easily deployed to the Cloud                                       | Aspire + azd to Azure Container Apps                                                                                          |
+| &#x2610; Deployment: Deployed in a way that scales horizontally                                           | Aspire and Azure Container Apps (or Kubernetes) does this                                                                     |
+| &#x2610; Deployment: Cloud-provider agnostic                                                              | Aspire + [Aspir8](https://prom3theu5.github.io/aspirational-manifests/getting-started.html) to Kubernetes                     |

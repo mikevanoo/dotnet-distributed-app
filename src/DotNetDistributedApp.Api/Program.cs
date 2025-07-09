@@ -1,8 +1,8 @@
+using DotNetDistributedApp.Api.Data;
 using DotNetDistributedApp.Api.Data.Weather;
 using DotNetDistributedApp.Api.Weather;
 using DotNetDistributedApp.ServiceDefaults;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,21 +13,9 @@ builder.AddServiceDefaults();
 builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
 
-builder.Services.AddDbContextPool<WeatherDbContext>(options =>
-{
-    var connectionString = builder.Configuration.GetConnectionString("api-database")
-                           ?? throw new InvalidOperationException("Connection string 'api-database' not found.");
-    options
-        .UseNpgsql(
-            connectionString,
-            x => x
-                .MigrationsHistoryTable("__efmigrationshistory", "public")
-                .CommandTimeout((int)TimeSpan.FromMinutes(5).TotalSeconds)
-            )
-        .UseNpgsql(connectionString)
-        .UseSnakeCaseNamingConvention();
-});
-builder.Services.AddScoped<WeatherService>();
+builder.Services
+    .AddApiDatabaseContext<WeatherDbContext>(builder.Configuration)
+    .AddScoped<WeatherService>();
 
 var app = builder.Build();
 

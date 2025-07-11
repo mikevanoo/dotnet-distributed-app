@@ -21,7 +21,6 @@ public class Worker(
             var dbContext = scope.ServiceProvider.GetRequiredService<WeatherDbContext>();
 
             await RunMigrationAsync(dbContext, cancellationToken);
-            await SeedDataAsync(dbContext, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -39,25 +38,6 @@ public class Worker(
         {
             // Run migration in a transaction to avoid partial migration if it fails.
             await dbContext.Database.MigrateAsync(cancellationToken);
-        });
-    }
-
-    private static async Task SeedDataAsync(WeatherDbContext dbContext, CancellationToken cancellationToken)
-    {
-        var stornowayStation = new WeatherStation()
-        {
-            Name = "Stornoway",
-            Latitude = 58.214m,
-            Longitude = -6.318m,
-        };
-
-        var strategy = dbContext.Database.CreateExecutionStrategy();
-        await strategy.ExecuteAsync(async () =>
-        {
-            await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
-            await dbContext.WeatherStations.AddAsync(stornowayStation, cancellationToken);
-            await dbContext.SaveChangesAsync(cancellationToken);
-            await transaction.CommitAsync(cancellationToken);
         });
     }
 }

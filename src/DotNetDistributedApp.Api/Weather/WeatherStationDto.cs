@@ -2,8 +2,8 @@
 
 public record WeatherStationDto
 {
-    public int Id { get; set; }
-    public required string Name { get; set; }
+    public required string Key { get; set; }
+    public required string DisplayName { get; set; }
     public decimal Longitude { get; set; }
     public decimal Latitude { get; set; }
 }

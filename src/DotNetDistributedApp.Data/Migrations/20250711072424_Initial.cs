@@ -25,6 +25,12 @@ namespace DotNetDistributedApp.Api.Data.Migrations
                 {
                     table.PrimaryKey("pk_weather_stations", x => x.id);
                 });
+
+            migrationBuilder.CreateIndex(
+                name: "ix_weather_stations_name",
+                table: "weather_stations",
+                column: "name",
+                unique: true);
         }
 
         /// <inheritdoc />

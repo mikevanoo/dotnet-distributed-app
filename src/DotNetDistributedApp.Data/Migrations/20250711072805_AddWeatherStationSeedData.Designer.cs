@@ -11,8 +11,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace DotNetDistributedApp.Api.Data.Migrations
 {
     [DbContext(typeof(WeatherDbContext))]
-    [Migration("20250709145343_Initial")]
-    partial class Initial
+    [Migration("20250711072805_AddWeatherStationSeedData")]
+    partial class AddWeatherStationSeedData
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -33,6 +33,16 @@ namespace DotNetDistributedApp.Api.Data.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("display_name");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("key");
+
                     b.Property<decimal>("Latitude")
                         .HasColumnType("numeric")
                         .HasColumnName("latitude");
@@ -41,15 +51,32 @@ namespace DotNetDistributedApp.Api.Data.Migrations
                         .HasColumnType("numeric")
                         .HasColumnName("longitude");
 
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("name");
-
                     b.HasKey("Id")
                         .HasName("pk_weather_stations");
 
+                    b.HasIndex("Key")
+                        .IsUnique()
+                        .HasDatabaseName("ix_weather_stations_key");
+
                     b.ToTable("weather_stations", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            DisplayName = "Stornoway",
+                            Key = "stornoway",
+                            Latitude = 58.214m,
+                            Longitude = -6.318m
+                        },
+                        new
+                        {
+                            Id = 2,
+                            DisplayName = "Heathrow (London Airport)",
+                            Key = "heathrow",
+                            Latitude = 51.479m,
+                            Longitude = -0.449m
+                        });
                 });
 #pragma warning restore 612, 618
         }

@@ -2,6 +2,7 @@
 using DotNetDistributedApp.Api.Data.Weather;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -10,9 +11,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace DotNetDistributedApp.Api.Data.Migrations
 {
     [DbContext(typeof(WeatherDbContext))]
-    partial class WeatherDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250711072424_Initial")]
+    partial class Initial
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -30,16 +33,6 @@ namespace DotNetDistributedApp.Api.Data.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("DisplayName")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("display_name");
-
-                    b.Property<string>("Key")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("key");
-
                     b.Property<decimal>("Latitude")
                         .HasColumnType("numeric")
                         .HasColumnName("latitude");
@@ -48,32 +41,19 @@ namespace DotNetDistributedApp.Api.Data.Migrations
                         .HasColumnType("numeric")
                         .HasColumnName("longitude");
 
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("name");
+
                     b.HasKey("Id")
                         .HasName("pk_weather_stations");
 
-                    b.HasIndex("Key")
+                    b.HasIndex("Name")
                         .IsUnique()
-                        .HasDatabaseName("ix_weather_stations_key");
+                        .HasDatabaseName("ix_weather_stations_name");
 
                     b.ToTable("weather_stations", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            DisplayName = "Stornoway",
-                            Key = "stornoway",
-                            Latitude = 58.214m,
-                            Longitude = -6.318m
-                        },
-                        new
-                        {
-                            Id = 2,
-                            DisplayName = "Heathrow (London Airport)",
-                            Key = "heathrow",
-                            Latitude = 51.479m,
-                            Longitude = -0.449m
-                        });
                 });
 #pragma warning restore 612, 618
         }

@@ -2,7 +2,7 @@ using System.Diagnostics;
 using DotNetDistributedApp.Api.Data.Weather;
 using Microsoft.EntityFrameworkCore;
 
-namespace DotNetDistributedApp.Data.MigrationService;
+namespace DotNetDistributedApp.Api.Data.MigrationService;
 
 public class Worker(
     IServiceProvider serviceProvider,

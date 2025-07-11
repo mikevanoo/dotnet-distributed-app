@@ -5,7 +5,7 @@ var apiDatabase = builder
     .WithPgAdmin()
     .AddDatabase("api-database");
 
-var apiDatabaseMigrations = builder.AddProject<Projects.DotNetDistributedApp_Data_MigrationService>("api-database-migrations")
+var apiDatabaseMigrations = builder.AddProject<Projects.DotNetDistributedApp_Api_Data_MigrationService>("api-database-migrations")
     .WithReference(apiDatabase)
     .WaitFor(apiDatabase);
 

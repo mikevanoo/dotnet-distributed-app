@@ -1,6 +1,6 @@
 using DotNetDistributedApp.Api.Data;
+using DotNetDistributedApp.Api.Data.MigrationService;
 using DotNetDistributedApp.Api.Data.Weather;
-using DotNetDistributedApp.Data.MigrationService;
 
 var builder = Host.CreateApplicationBuilder(args);
 builder.Services.AddHostedService<Worker>()

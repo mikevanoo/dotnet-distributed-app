@@ -16,8 +16,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\DotNetDistributedApp.Api.Data.MigrationService\DotNetDistributedApp.Api.Data.MigrationService.csproj" />
     <ProjectReference Include="..\DotNetDistributedApp.Api\DotNetDistributedApp.Api.csproj" />
-    <ProjectReference Include="..\DotNetDistributedApp.Data.MigrationService\DotNetDistributedApp.Data.MigrationService.csproj" />
     <ProjectReference Include="..\DotNetDistributedApp.ServiceDefaults\DotNetDistributedApp.ServiceDefaults.csproj" IsAspireProjectResource="false" />
   </ItemGroup>
 

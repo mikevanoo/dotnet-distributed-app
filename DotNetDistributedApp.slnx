@@ -6,7 +6,7 @@
   <Folder Name="/src/">
     <Project Path="src\DotNetDistributedApp.Api\DotNetDistributedApp.Api.csproj" Type="Classic C#" />
     <Project Path="src\DotNetDistributedApp.AppHost\DotNetDistributedApp.AppHost.csproj" Type="Classic C#" />
-    <Project Path="src\DotNetDistributedApp.Data.MigrationService\DotNetDistributedApp.Data.MigrationService.csproj" Type="Classic C#" />
+    <Project Path="src\DotNetDistributedApp.Api.Data.MigrationService\DotNetDistributedApp.Api.Data.MigrationService.csproj" Type="Classic C#" />
     <Project Path="src\DotNetDistributedApp.Data\DotNetDistributedApp.Api.Data.csproj" Type="Classic C#" />
     <Project Path="src\DotNetDistributedApp.ServiceDefaults\DotNetDistributedApp.ServiceDefaults.csproj" Type="Classic C#" />
   </Folder>

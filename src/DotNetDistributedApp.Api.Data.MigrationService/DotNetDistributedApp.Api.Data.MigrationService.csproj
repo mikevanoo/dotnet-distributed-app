@@ -15,7 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\DotNetDistributedApp.Data\DotNetDistributedApp.Api.Data.csproj" />
+    <ProjectReference Include="..\DotNetDistributedApp.Api.Data\DotNetDistributedApp.Api.Data.csproj" />
     <ProjectReference Include="..\DotNetDistributedApp.ServiceDefaults\DotNetDistributedApp.ServiceDefaults.csproj" />
   </ItemGroup>
 </Project>

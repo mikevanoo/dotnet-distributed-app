@@ -1,5 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -8,7 +7,6 @@
     <IsTestProject>true</IsTestProject>
     <OutputType>Exe</OutputType>
   </PropertyGroup>
-
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting.Testing" Version="9.3.1" />
     <PackageReference Include="AwesomeAssertions" Version="9.0.0" />
@@ -32,7 +30,6 @@
     </PackageReference>
     <PackageReference Include="xunit.v3" Version="3.0.0-pre.40" />
   </ItemGroup>
-
   <ItemGroup>
     <Using Include="System.Net" />
     <Using Include="Microsoft.Extensions.DependencyInjection" />
@@ -40,9 +37,7 @@
     <Using Include="Aspire.Hosting.Testing" />
     <Using Include="Xunit" />
   </ItemGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\..\src\DotNetDistributedApp.AppHost\DotNetDistributedApp.AppHost.csproj" />
   </ItemGroup>
-
 </Project>

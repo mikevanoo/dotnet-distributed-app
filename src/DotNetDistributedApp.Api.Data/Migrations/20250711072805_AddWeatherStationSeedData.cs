@@ -12,22 +12,21 @@ namespace DotNetDistributedApp.Api.Data.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.RenameColumn(
-                name: "name",
-                table: "weather_stations",
-                newName: "key");
+            migrationBuilder.RenameColumn(name: "name", table: "weather_stations", newName: "key");
 
             migrationBuilder.RenameIndex(
                 name: "ix_weather_stations_name",
                 table: "weather_stations",
-                newName: "ix_weather_stations_key");
+                newName: "ix_weather_stations_key"
+            );
 
             migrationBuilder.AddColumn<string>(
                 name: "display_name",
                 table: "weather_stations",
                 type: "text",
                 nullable: false,
-                defaultValue: "");
+                defaultValue: ""
+            );
 
             migrationBuilder.InsertData(
                 table: "weather_stations",
@@ -35,36 +34,27 @@ namespace DotNetDistributedApp.Api.Data.Migrations
                 values: new object[,]
                 {
                     { 1, "Stornoway", "stornoway", 58.214m, -6.318m },
-                    { 2, "Heathrow (London Airport)", "heathrow", 51.479m, -0.449m }
-                });
+                    { 2, "Heathrow (London Airport)", "heathrow", 51.479m, -0.449m },
+                }
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DeleteData(
-                table: "weather_stations",
-                keyColumn: "id",
-                keyValue: 1);
+            migrationBuilder.DeleteData(table: "weather_stations", keyColumn: "id", keyValue: 1);
 
-            migrationBuilder.DeleteData(
-                table: "weather_stations",
-                keyColumn: "id",
-                keyValue: 2);
+            migrationBuilder.DeleteData(table: "weather_stations", keyColumn: "id", keyValue: 2);
 
-            migrationBuilder.DropColumn(
-                name: "display_name",
-                table: "weather_stations");
+            migrationBuilder.DropColumn(name: "display_name", table: "weather_stations");
 
-            migrationBuilder.RenameColumn(
-                name: "key",
-                table: "weather_stations",
-                newName: "name");
+            migrationBuilder.RenameColumn(name: "key", table: "weather_stations", newName: "name");
 
             migrationBuilder.RenameIndex(
                 name: "ix_weather_stations_key",
                 table: "weather_stations",
-                newName: "ix_weather_stations_name");
+                newName: "ix_weather_stations_name"
+            );
         }
     }
 }

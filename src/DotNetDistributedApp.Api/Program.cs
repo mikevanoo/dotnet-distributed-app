@@ -14,9 +14,7 @@ builder.AddServiceDefaults();
 builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
 
-builder.Services
-    .AddApiDatabaseContext<WeatherDbContext>(builder.Configuration)
-    .AddScoped<WeatherService>();
+builder.Services.AddApiDatabaseContext<WeatherDbContext>(builder.Configuration).AddScoped<WeatherService>();
 
 var app = builder.Build();
 
@@ -32,21 +30,27 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-app.MapGet("/weather/stations", async ([FromServices] WeatherService weatherService) => 
-    await weatherService.GetWeatherStations());
+app.MapGet(
+    "/weather/stations",
+    async ([FromServices] WeatherService weatherService) => await weatherService.GetWeatherStations()
+);
 
-app.MapGet("/weather/stations/{stationKey}/historic-data", 
+app.MapGet(
+    "/weather/stations/{stationKey}/historic-data",
     async Task<Results<Ok<List<WeatherStationHistoricDataDto>>, NotFound>> (
-        [FromServices] WeatherService weatherService, string stationKey) =>
-{
-    var data = await weatherService.GetWeatherStationHistoricData(stationKey);
-    if (data is null)
+        [FromServices] WeatherService weatherService,
+        string stationKey
+    ) =>
     {
-        return TypedResults.NotFound();
+        var data = await weatherService.GetWeatherStationHistoricData(stationKey);
+        if (data is null)
+        {
+            return TypedResults.NotFound();
+        }
+
+        return TypedResults.Ok(data);
     }
-    
-    return TypedResults.Ok(data);
-});
+);
 
 app.MapDefaultEndpoints();
 

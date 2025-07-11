@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 
 namespace DotNetDistributedApp.IntegrationTests;
 
-public class AppHostFixture: IAsyncLifetime
+public class AppHostFixture : IAsyncLifetime
 {
     public static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(30);
     public DistributedApplication App { get; private set; } = null!;
@@ -14,7 +14,9 @@ public class AppHostFixture: IAsyncLifetime
     public async ValueTask InitializeAsync()
     {
         var cancellationToken = CreateCancellationToken();
-        var appHost = await DistributedApplicationTestingBuilder.CreateAsync<Projects.DotNetDistributedApp_AppHost>(cancellationToken);
+        var appHost = await DistributedApplicationTestingBuilder.CreateAsync<Projects.DotNetDistributedApp_AppHost>(
+            cancellationToken
+        );
         appHost.Services.AddLogging(logging =>
         {
             logging.SetMinimumLevel(LogLevel.Debug);
@@ -27,12 +29,12 @@ public class AppHostFixture: IAsyncLifetime
         {
             clientBuilder.AddStandardResilienceHandler();
         });
-    
+
         App = await appHost.BuildAsync(cancellationToken).WaitAsync(DefaultTimeout, cancellationToken);
         await App.StartAsync(cancellationToken).WaitAsync(DefaultTimeout, cancellationToken);
-        
-        await App.ResourceNotifications
-            .WaitForResourceHealthyAsync("api", cancellationToken)
+
+        await App
+            .ResourceNotifications.WaitForResourceHealthyAsync("api", cancellationToken)
             .WaitAsync(AppHostFixture.DefaultTimeout, cancellationToken);
     }
 

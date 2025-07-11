@@ -15,29 +15,34 @@ namespace DotNetDistributedApp.Api.Data.Migrations
                 name: "weather_stations",
                 columns: table => new
                 {
-                    id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    id = table
+                        .Column<int>(type: "integer", nullable: false)
+                        .Annotation(
+                            "Npgsql:ValueGenerationStrategy",
+                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
+                        ),
                     name = table.Column<string>(type: "text", nullable: false),
                     longitude = table.Column<decimal>(type: "numeric", nullable: false),
-                    latitude = table.Column<decimal>(type: "numeric", nullable: false)
+                    latitude = table.Column<decimal>(type: "numeric", nullable: false),
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("pk_weather_stations", x => x.id);
-                });
+                }
+            );
 
             migrationBuilder.CreateIndex(
                 name: "ix_weather_stations_name",
                 table: "weather_stations",
                 column: "name",
-                unique: true);
+                unique: true
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "weather_stations");
+            migrationBuilder.DropTable(name: "weather_stations");
         }
     }
 }

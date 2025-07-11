@@ -17,8 +17,12 @@ namespace DotNetDistributedApp.Api.Data.Migrations
                 name: "weather_station_historic_data",
                 columns: table => new
                 {
-                    id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    id = table
+                        .Column<int>(type: "integer", nullable: false)
+                        .Annotation(
+                            "Npgsql:ValueGenerationStrategy",
+                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
+                        ),
                     weather_station_id = table.Column<int>(type: "integer", nullable: false),
                     year = table.Column<int>(type: "integer", nullable: false),
                     month = table.Column<int>(type: "integer", nullable: false),
@@ -27,7 +31,7 @@ namespace DotNetDistributedApp.Api.Data.Migrations
                     days_of_air_frost = table.Column<int>(type: "integer", nullable: true),
                     total_rainfall_millimeters = table.Column<decimal>(type: "numeric", nullable: true),
                     total_sunshine_hours = table.Column<decimal>(type: "numeric", nullable: true),
-                    is_provisional = table.Column<bool>(type: "boolean", nullable: false)
+                    is_provisional = table.Column<bool>(type: "boolean", nullable: false),
                 },
                 constraints: table =>
                 {
@@ -37,12 +41,26 @@ namespace DotNetDistributedApp.Api.Data.Migrations
                         column: x => x.weather_station_id,
                         principalTable: "weather_stations",
                         principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                });
+                        onDelete: ReferentialAction.Cascade
+                    );
+                }
+            );
 
             migrationBuilder.InsertData(
                 table: "weather_station_historic_data",
-                columns: new[] { "id", "days_of_air_frost", "is_provisional", "mean_daily_max_temperature", "mean_daily_min_temperature", "month", "total_rainfall_millimeters", "total_sunshine_hours", "weather_station_id", "year" },
+                columns: new[]
+                {
+                    "id",
+                    "days_of_air_frost",
+                    "is_provisional",
+                    "mean_daily_max_temperature",
+                    "mean_daily_min_temperature",
+                    "month",
+                    "total_rainfall_millimeters",
+                    "total_sunshine_hours",
+                    "weather_station_id",
+                    "year",
+                },
                 values: new object[,]
                 {
                     { 1, null, false, 8.9m, 3.3m, 1, 85.0m, null, 2, 1948 },
@@ -974,21 +992,22 @@ namespace DotNetDistributedApp.Api.Data.Migrations
                     { 927, 7, true, 14.1m, 3.9m, 3, 4.4m, 187.9m, 2, 2025 },
                     { 928, 0, true, 18.3m, 7.0m, 4, 18.8m, 252.3m, 2, 2025 },
                     { 929, 0, true, 21.1m, 10.1m, 5, 15.4m, 225.5m, 2, 2025 },
-                    { 930, 0, true, 25.6m, 14.1m, 6, 26.8m, 230.8m, 2, 2025 }
-                });
+                    { 930, 0, true, 25.6m, 14.1m, 6, 26.8m, 230.8m, 2, 2025 },
+                }
+            );
 
             migrationBuilder.CreateIndex(
                 name: "ix_weather_station_historic_data_weather_station_id_year_month",
                 table: "weather_station_historic_data",
                 columns: new[] { "weather_station_id", "year", "month" },
-                descending: new[] { false, true, true });
+                descending: new[] { false, true, true }
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "weather_station_historic_data");
+            migrationBuilder.DropTable(name: "weather_station_historic_data");
         }
     }
 }

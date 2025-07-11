@@ -7,7 +7,7 @@ public class WeatherService(WeatherDbContext dbContext)
 {
     public async Task<List<WeatherStationDto>> GetWeatherStations()
     {
-        var stations = await dbContext.WeatherStations.OrderBy(x => x.Key).ToArrayAsync();
+        var stations = await dbContext.WeatherStations.OrderBy(x => x.Key).ToListAsync();
         return stations.Select(station => new WeatherStationDto
         {
             Key = station.Key,

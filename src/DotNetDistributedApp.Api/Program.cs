@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using DotNetDistributedApp.Api.Data;
 using DotNetDistributedApp.Api.Data.Weather;
 using DotNetDistributedApp.Api.Weather;
@@ -11,8 +12,13 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 
 // Add services to the container.
-builder.Services.AddProblemDetails();
-builder.Services.AddOpenApi();
+builder
+    .Services.ConfigureHttpJsonOptions(options =>
+    {
+        options.SerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+    })
+    .AddProblemDetails()
+    .AddOpenApi();
 
 builder.Services.AddApiDatabaseContext<WeatherDbContext>(builder.Configuration).AddScoped<WeatherService>();
 

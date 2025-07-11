@@ -1,24 +1,28 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using DotNetDistributedApp.Api.Data.Weather;
+using DotNetDistributedApp.Api.Errors;
+using FluentResults;
 using Microsoft.EntityFrameworkCore;
 
 namespace DotNetDistributedApp.Api.Weather;
 
 public class WeatherService(WeatherDbContext dbContext)
 {
-    public async Task<List<WeatherStationDto>> GetWeatherStations()
+    public async Task<Result<List<WeatherStationDto>>> GetWeatherStations()
     {
         var stations = await dbContext.WeatherStations.OrderBy(x => x.DisplayName).ToListAsync();
 
-        return stations
-            .Select(station => new WeatherStationDto
-            {
-                Key = station.Key,
-                DisplayName = station.DisplayName,
-                Longitude = station.Longitude,
-                Latitude = station.Latitude,
-            })
-            .ToList();
+        return Result.Ok(
+            stations
+                .Select(station => new WeatherStationDto
+                {
+                    Key = station.Key,
+                    DisplayName = station.DisplayName,
+                    Longitude = station.Longitude,
+                    Latitude = station.Latitude,
+                })
+                .ToList()
+        );
     }
 
     [SuppressMessage("Globalization", "CA1304:Specify CultureInfo")]
@@ -27,14 +31,14 @@ public class WeatherService(WeatherDbContext dbContext)
         "Performance",
         "CA1862:Use the \'StringComparison\' method overloads to perform case-insensitive string comparisons"
     )]
-    public async Task<List<WeatherStationHistoricDataDto>> GetWeatherStationHistoricData(string stationKey)
+    public async Task<Result<List<WeatherStationHistoricDataDto>>> GetWeatherStationHistoricData(string stationKey)
     {
         var station = await dbContext.WeatherStations.SingleOrDefaultAsync(x =>
             x.Key.ToUpper() == stationKey.ToUpper()
         );
         if (station == null)
         {
-            return null;
+            return Result.Fail(new NotFoundError($"Weather Station {stationKey} not found"));
         }
 
         var historicData = await dbContext
@@ -43,18 +47,20 @@ public class WeatherService(WeatherDbContext dbContext)
             .ThenByDescending(x => x.Month)
             .ToListAsync();
 
-        return historicData
-            .Select(data => new WeatherStationHistoricDataDto
-            {
-                Year = data.Year,
-                Month = data.Month,
-                MeanDailyMaxTemperature = data.MeanDailyMaxTemperature,
-                MeanDailyMinTemperature = data.MeanDailyMinTemperature,
-                DaysOfAirFrost = data.DaysOfAirFrost,
-                TotalRainfallMillimeters = data.TotalRainfallMillimeters,
-                TotalSunshineHours = data.TotalSunshineHours,
-                IsProvisional = data.IsProvisional,
-            })
-            .ToList();
+        return Result.Ok(
+            historicData
+                .Select(data => new WeatherStationHistoricDataDto
+                {
+                    Year = data.Year,
+                    Month = data.Month,
+                    MeanDailyMaxTemperature = data.MeanDailyMaxTemperature,
+                    MeanDailyMinTemperature = data.MeanDailyMinTemperature,
+                    DaysOfAirFrost = data.DaysOfAirFrost,
+                    TotalRainfallMillimeters = data.TotalRainfallMillimeters,
+                    TotalSunshineHours = data.TotalSunshineHours,
+                    IsProvisional = data.IsProvisional,
+                })
+                .ToList()
+        );
     }
 }

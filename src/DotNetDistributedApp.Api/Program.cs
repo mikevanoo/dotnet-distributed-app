@@ -1,9 +1,9 @@
 using System.Text.Json.Serialization;
+using DotNetDistributedApp.Api;
 using DotNetDistributedApp.Api.Data;
 using DotNetDistributedApp.Api.Data.Weather;
 using DotNetDistributedApp.Api.Weather;
 using DotNetDistributedApp.ServiceDefaults;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -36,26 +36,15 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-app.MapGet(
-    "/weather/stations",
-    async ([FromServices] WeatherService weatherService) => await weatherService.GetWeatherStations()
+var weatherGroup = app.MapGroup("/weather");
+weatherGroup.MapGet(
+    "/stations",
+    async ([FromServices] WeatherService weatherService) => (await weatherService.GetWeatherStations()).ToApiResponse()
 );
-
-app.MapGet(
-    "/weather/stations/{stationKey}/historic-data",
-    async Task<Results<Ok<List<WeatherStationHistoricDataDto>>, NotFound>> (
-        [FromServices] WeatherService weatherService,
-        string stationKey
-    ) =>
-    {
-        var data = await weatherService.GetWeatherStationHistoricData(stationKey);
-        if (data is null)
-        {
-            return TypedResults.NotFound();
-        }
-
-        return TypedResults.Ok(data);
-    }
+weatherGroup.MapGet(
+    "/stations/{stationKey}/historic-data",
+    async ([FromServices] WeatherService weatherService, string stationKey) =>
+        (await weatherService.GetWeatherStationHistoricData(stationKey)).ToApiResponse()
 );
 
 app.MapDefaultEndpoints();

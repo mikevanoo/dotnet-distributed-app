@@ -2,6 +2,7 @@ using DotNetDistributedApp.Api.Data;
 using DotNetDistributedApp.Api.Data.Weather;
 using DotNetDistributedApp.Api.Weather;
 using DotNetDistributedApp.ServiceDefaults;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -33,6 +34,19 @@ if (app.Environment.IsDevelopment())
 
 app.MapGet("/weather/stations", async ([FromServices] WeatherService weatherService) => 
     await weatherService.GetWeatherStations());
+
+app.MapGet("/weather/stations/{stationKey}/historic-data", 
+    async Task<Results<Ok<List<WeatherStationHistoricDataDto>>, NotFound>> (
+        [FromServices] WeatherService weatherService, string stationKey) =>
+{
+    var data = await weatherService.GetWeatherStationHistoricData(stationKey);
+    if (data is null)
+    {
+        return TypedResults.NotFound();
+    }
+    
+    return TypedResults.Ok(data);
+});
 
 app.MapDefaultEndpoints();
 

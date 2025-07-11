@@ -7,7 +7,8 @@ public class WeatherService(WeatherDbContext dbContext)
 {
     public async Task<List<WeatherStationDto>> GetWeatherStations()
     {
-        var stations = await dbContext.WeatherStations.OrderBy(x => x.Key).ToListAsync();
+        var stations = await dbContext.WeatherStations.OrderBy(x => x.DisplayName).ToListAsync();
+        
         return stations.Select(station => new WeatherStationDto
         {
             Key = station.Key,
@@ -15,7 +16,34 @@ public class WeatherService(WeatherDbContext dbContext)
             Longitude = station.Longitude,
             Latitude = station.Latitude
         })
-        .OrderBy(x => x.DisplayName)
         .ToList();
+    }
+    
+    public async Task<List<WeatherStationHistoricDataDto>> GetWeatherStationHistoricData(string stationKey)
+    {
+        var station = await dbContext.WeatherStations.SingleOrDefaultAsync(x => x.Key.ToUpper() == stationKey.ToUpper());
+        if (station == null)
+        {
+            return null;
+        }
+        
+        var historicData = await dbContext.WeatherStationHistoricData
+            .Where(x => x.WeatherStationId == station.Id)
+            .OrderByDescending(x => x.Year)
+            .ThenByDescending(x => x.Month)
+            .ToListAsync();
+        
+        return historicData.Select(data => new WeatherStationHistoricDataDto
+            {
+                Year = data.Year,
+                Month = data.Month,
+                MeanDailyMaxTemperature = data.MeanDailyMaxTemperature,
+                MeanDailyMinTemperature = data.MeanDailyMinTemperature,
+                DaysOfAirFrost = data.DaysOfAirFrost,
+                TotalRainfallMillimeters = data.TotalRainfallMillimeters,
+                TotalSunshineHours = data.TotalSunshineHours,
+                IsProvisional = data.IsProvisional
+            })
+            .ToList();
     }
 }

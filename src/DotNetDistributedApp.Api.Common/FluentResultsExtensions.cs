@@ -1,10 +1,11 @@
 ﻿using System.Net;
-using DotNetDistributedApp.Api.Errors;
+using DotNetDistributedApp.Api.Common.Errors;
 using FluentResults;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace DotNetDistributedApp.Api;
+namespace DotNetDistributedApp.Api.Common;
 
 public static class FluentResultsExtensions
 {

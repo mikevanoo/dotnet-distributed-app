@@ -1,6 +1,6 @@
 ﻿using System.Diagnostics.CodeAnalysis;
+using DotNetDistributedApp.Api.Common.Errors;
 using DotNetDistributedApp.Api.Data.Weather;
-using DotNetDistributedApp.Api.Errors;
 using FluentResults;
 using Microsoft.EntityFrameworkCore;
 

@@ -1,6 +1,6 @@
 ﻿using FluentResults;
 
-namespace DotNetDistributedApp.Api.Errors;
+namespace DotNetDistributedApp.Api.Common.Errors;
 
 public class NotFoundError : Error
 {

@@ -1,10 +1,7 @@
 using System.Text.Json.Serialization;
 using DotNetDistributedApp.Api.Common;
-using DotNetDistributedApp.Api.Data;
-using DotNetDistributedApp.Api.Data.Weather;
-using DotNetDistributedApp.Api.Weather;
 using DotNetDistributedApp.ServiceDefaults;
-using Microsoft.AspNetCore.Mvc;
+using DotNetDistributedApp.SpatialApi.CoordinateConverter;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,8 +17,6 @@ builder
     .AddProblemDetails()
     .AddOpenApi();
 
-builder.Services.AddApiDatabaseContext<WeatherDbContext>(builder.Configuration).AddScoped<WeatherService>();
-
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -36,15 +31,14 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-var weatherGroup = app.MapGroup("/weather");
-weatherGroup.MapGet(
-    "/stations",
-    async ([FromServices] WeatherService weatherService) => (await weatherService.GetWeatherStations()).ToApiResponse()
+var conversionGroup = app.MapGroup("/coordinate-converter");
+conversionGroup.MapGet(
+    "/to-os-national-grid-reference",
+    (double latitude, double longitude) => CoordinateConverterService.ToOsgb36(latitude, longitude).ToApiResponse()
 );
-weatherGroup.MapGet(
-    "/stations/{stationKey}/historic-data",
-    async ([FromServices] WeatherService weatherService, string stationKey) =>
-        (await weatherService.GetWeatherStationHistoricData(stationKey)).ToApiResponse()
+conversionGroup.MapGet(
+    "/to-latitude-longitude",
+    (double easting, double northing) => CoordinateConverterService.ToWgs84(easting, northing).ToApiResponse()
 );
 
 app.MapDefaultEndpoints();

@@ -1,6 +1,6 @@
 using AwesomeAssertions;
 
-namespace DotNetDistributedApp.IntegrationTests;
+namespace DotNetDistributedApp.IntegrationTests.Api;
 
 public class WeatherStationsShould(AppHostFixture appHostFixture)
 {

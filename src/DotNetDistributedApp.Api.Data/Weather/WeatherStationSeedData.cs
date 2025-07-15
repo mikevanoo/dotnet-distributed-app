@@ -2,6 +2,8 @@
 
 public static class WeatherStationSeedData
 {
+    // Data taken from https://www.metoffice.gov.uk/research/climate/maps-and-data/historic-station-data
+
     public static List<WeatherStation> GetWeatherStations() => [Stornoway, Heathrow];
 
     public static readonly WeatherStation Stornoway = new()

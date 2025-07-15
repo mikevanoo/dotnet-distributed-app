@@ -1,5 +1,17 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
+var spatialApi = builder
+    .AddProject<Projects.DotNetDistributedApp_SpatialApi>("spatial-api")
+    .WithHttpHealthCheck("/health")
+    .WithUrlForEndpoint(
+        "https",
+        url =>
+        {
+            url.DisplayText = "Swagger UI";
+            url.Url = "/swagger";
+        }
+    );
+
 var apiDatabase = builder
     .AddPostgres("api-database-server")
     .WithDataVolume(isReadOnly: false)
@@ -24,6 +36,8 @@ var api = builder
     )
     .WithReference(apiDatabase)
     .WithReference(apiDatabaseMigrations)
-    .WaitForCompletion(apiDatabaseMigrations);
+    .WithReference(spatialApi)
+    .WaitForCompletion(apiDatabaseMigrations)
+    .WaitFor(spatialApi);
 
 builder.Build().Run();

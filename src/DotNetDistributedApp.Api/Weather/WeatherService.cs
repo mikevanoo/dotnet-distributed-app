@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics.CodeAnalysis;
+using DotNetDistributedApp.Api.Clients;
 using DotNetDistributedApp.Api.Common.Errors;
 using DotNetDistributedApp.Api.Data.Weather;
 using FluentResults;
@@ -6,23 +7,42 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DotNetDistributedApp.Api.Weather;
 
-public class WeatherService(WeatherDbContext dbContext)
+public class WeatherService(WeatherDbContext dbContext, CoordinateConverterClient coordinateConverterClient)
 {
     public async Task<Result<List<WeatherStationDto>>> GetWeatherStations()
     {
         var stations = await dbContext.WeatherStations.OrderBy(x => x.DisplayName).ToListAsync();
+        var stationDtos = stations
+            .Select(station => new WeatherStationDto
+            {
+                Key = station.Key,
+                DisplayName = station.DisplayName,
+                Longitude = station.Longitude,
+                Latitude = station.Latitude,
+            })
+            .ToList();
 
-        return Result.Ok(
-            stations
-                .Select(station => new WeatherStationDto
-                {
-                    Key = station.Key,
-                    DisplayName = station.DisplayName,
-                    Longitude = station.Longitude,
-                    Latitude = station.Latitude,
-                })
-                .ToList()
-        );
+        var result = new List<WeatherStationDto>(stationDtos.Count);
+        foreach (var stationDto in stationDtos)
+        {
+            var gridReference = await coordinateConverterClient.ToOsNationalGridReference(
+                stationDto.Latitude,
+                stationDto.Longitude
+            );
+
+            if (gridReference.IsSuccess)
+            {
+                result.Add(
+                    stationDto with
+                    {
+                        Easting = gridReference.Value.Easting,
+                        Northing = gridReference.Value.Northing,
+                    }
+                );
+            }
+        }
+
+        return Result.Ok(result);
     }
 
     [SuppressMessage("Globalization", "CA1304:Specify CultureInfo")]
@@ -36,7 +56,7 @@ public class WeatherService(WeatherDbContext dbContext)
         var station = await dbContext.WeatherStations.SingleOrDefaultAsync(x =>
             x.Key.ToUpper() == stationKey.ToUpper()
         );
-        if (station == null)
+        if (station is null)
         {
             return Result.Fail(new NotFoundError($"Weather Station {stationKey} not found"));
         }

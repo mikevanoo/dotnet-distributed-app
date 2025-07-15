@@ -1,4 +1,5 @@
 using AwesomeAssertions;
+using DotNetDistributedApp.SpatialApi.CoordinateConverter;
 
 namespace DotNetDistributedApp.IntegrationTests.SpatialApi;
 
@@ -19,8 +20,8 @@ public class CoordinateConverterShould(AppHostFixture appHostFixture)
             .Be200Ok()
             .And.Satisfy<OsNationalGridReferenceDto>(model =>
             {
-                model.easting.Should().BePositive();
-                model.northing.Should().BePositive();
+                model.Easting.Should().BePositive();
+                model.Northing.Should().BePositive();
             });
     }
 
@@ -39,8 +40,8 @@ public class CoordinateConverterShould(AppHostFixture appHostFixture)
             .Be200Ok()
             .And.Satisfy<LatitudeLongitudeDto>(model =>
             {
-                model.latitude.Should().BePositive();
-                model.longitude.Should().BeNegative();
+                model.Latitude.Should().BePositive();
+                model.Longitude.Should().BeNegative();
             });
     }
 }

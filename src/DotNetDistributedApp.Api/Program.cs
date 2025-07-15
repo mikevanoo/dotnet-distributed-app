@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using DotNetDistributedApp.Api.Clients;
 using DotNetDistributedApp.Api.Common;
 using DotNetDistributedApp.Api.Data;
 using DotNetDistributedApp.Api.Data.Weather;
@@ -20,6 +21,10 @@ builder
     .AddProblemDetails()
     .AddOpenApi();
 
+builder.Services.AddHttpClient<CoordinateConverterClient>(client =>
+{
+    client.BaseAddress = new("https://spatial-api");
+});
 builder.Services.AddApiDatabaseContext<WeatherDbContext>(builder.Configuration).AddScoped<WeatherService>();
 
 var app = builder.Build();

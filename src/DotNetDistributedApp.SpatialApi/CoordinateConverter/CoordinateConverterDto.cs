@@ -1,3 +1,5 @@
-﻿public record struct LatitudeLongitudeDto(double latitude, double longitude);
+﻿namespace DotNetDistributedApp.SpatialApi.CoordinateConverter;
 
-public record struct OsNationalGridReferenceDto(double easting, double northing);
+public record struct LatitudeLongitudeDto(double Latitude, double Longitude);
+
+public record struct OsNationalGridReferenceDto(double Easting, double Northing);

@@ -11,8 +11,8 @@ public static class WeatherStationSeedData
         Id = 1,
         Key = "stornoway",
         DisplayName = "Stornoway",
-        Latitude = 58.214m,
-        Longitude = -6.318m,
+        Latitude = 58.214f,
+        Longitude = -6.318f,
     };
 
     public static readonly WeatherStation Heathrow = new()
@@ -20,8 +20,8 @@ public static class WeatherStationSeedData
         Id = 2,
         Key = "heathrow",
         DisplayName = "Heathrow (London Airport)",
-        Latitude = 51.479m,
-        Longitude = -0.449m,
+        Latitude = 51.479f,
+        Longitude = -0.449f,
     };
 
     public static List<WeatherStationHistoricData> GetWeatherStationHistoricDataStornoway() =>

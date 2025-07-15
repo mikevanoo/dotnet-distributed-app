@@ -36,8 +36,8 @@ var api = builder
     )
     .WithReference(apiDatabase)
     .WithReference(apiDatabaseMigrations)
-    .WithReference(spatialApi)
     .WaitForCompletion(apiDatabaseMigrations)
+    .WithReference(spatialApi)
     .WaitFor(spatialApi);
 
 builder.Build().Run();

@@ -1,6 +1,10 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
-var apiDatabase = builder.AddPostgres("api-database-server").WithPgAdmin().AddDatabase("api-database");
+var apiDatabase = builder
+    .AddPostgres("api-database-server")
+    .WithDataVolume(isReadOnly: false)
+    .WithPgAdmin()
+    .AddDatabase("api-database");
 
 var apiDatabaseMigrations = builder
     .AddProject<Projects.DotNetDistributedApp_Api_Data_MigrationService>("api-database-migrations")

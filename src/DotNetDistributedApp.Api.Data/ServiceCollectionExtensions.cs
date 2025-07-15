@@ -23,6 +23,7 @@ public static class ServiceCollectionExtensions
                     x =>
                         x.MigrationsHistoryTable("__efmigrationshistory", "public")
                             .CommandTimeout((int)TimeSpan.FromMinutes(5).TotalSeconds)
+                            .EnableRetryOnFailure()
                 )
                 .UseNpgsql(connectionString)
                 .UseSnakeCaseNamingConvention();

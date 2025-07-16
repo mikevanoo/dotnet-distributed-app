@@ -1,5 +1,25 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
+var apiDatabaseServer = builder.AddPostgres("api-database-server").WithDataVolume(isReadOnly: false);
+apiDatabaseServer.WithPgAdmin(configureContainer =>
+{
+    configureContainer.WithExplicitStart();
+});
+var apiDatabase = apiDatabaseServer.AddDatabase("api-database");
+
+var apiDatabaseMigrations = builder
+    .AddProject<Projects.DotNetDistributedApp_Api_Data_MigrationService>("api-database-migrations")
+    .WithReference(apiDatabase)
+    .WithParentRelationship(apiDatabase)
+    .WaitFor(apiDatabase);
+
+var cache = builder
+    .AddRedis("cache")
+    .WithRedisInsight(configureContainer =>
+    {
+        configureContainer.WithExplicitStart();
+    });
+
 var spatialApi = builder
     .AddProject<Projects.DotNetDistributedApp_SpatialApi>("spatial-api")
     .WithHttpHealthCheck("/health")
@@ -11,17 +31,6 @@ var spatialApi = builder
             url.Url = "/swagger";
         }
     );
-
-var apiDatabase = builder
-    .AddPostgres("api-database-server")
-    .WithDataVolume(isReadOnly: false)
-    .WithPgAdmin()
-    .AddDatabase("api-database");
-
-var apiDatabaseMigrations = builder
-    .AddProject<Projects.DotNetDistributedApp_Api_Data_MigrationService>("api-database-migrations")
-    .WithReference(apiDatabase)
-    .WaitFor(apiDatabase);
 
 var api = builder
     .AddProject<Projects.DotNetDistributedApp_Api>("api")

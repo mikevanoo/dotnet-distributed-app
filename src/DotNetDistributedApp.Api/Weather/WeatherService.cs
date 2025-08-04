@@ -12,35 +12,31 @@ public class WeatherService(WeatherDbContext dbContext, CoordinateConverterClien
     public async Task<Result<List<WeatherStationDto>>> GetWeatherStations()
     {
         var stations = await dbContext.WeatherStations.OrderBy(x => x.DisplayName).ToListAsync();
-        var stationDtos = stations
-            .Select(station => new WeatherStationDto
+
+        var conversionTasks = stations
+            .Select(async station =>
             {
-                Key = station.Key,
-                DisplayName = station.DisplayName,
-                Longitude = station.Longitude,
-                Latitude = station.Latitude,
+                var gridRef = await coordinateConverterClient.ToOsNationalGridReference(
+                    station.Latitude,
+                    station.Longitude
+                );
+                if (gridRef.IsSuccess)
+                {
+                    return new WeatherStationDto
+                    {
+                        Key = station.Key,
+                        DisplayName = station.DisplayName,
+                        Longitude = station.Longitude,
+                        Latitude = station.Latitude,
+                        Easting = gridRef.Value.Easting,
+                        Northing = gridRef.Value.Northing,
+                    };
+                }
+                return null;
             })
             .ToList();
 
-        var result = new List<WeatherStationDto>(stationDtos.Count);
-        foreach (var stationDto in stationDtos)
-        {
-            var gridReference = await coordinateConverterClient.ToOsNationalGridReference(
-                stationDto.Latitude,
-                stationDto.Longitude
-            );
-
-            if (gridReference.IsSuccess)
-            {
-                result.Add(
-                    stationDto with
-                    {
-                        Easting = gridReference.Value.Easting,
-                        Northing = gridReference.Value.Northing,
-                    }
-                );
-            }
-        }
+        var result = (await Task.WhenAll(conversionTasks)).OfType<WeatherStationDto>().ToList();
 
         return Result.Ok(result);
     }
@@ -67,20 +63,20 @@ public class WeatherService(WeatherDbContext dbContext, CoordinateConverterClien
             .ThenByDescending(x => x.Month)
             .ToListAsync();
 
-        return Result.Ok(
-            historicData
-                .Select(data => new WeatherStationHistoricDataDto
-                {
-                    Year = data.Year,
-                    Month = data.Month,
-                    MeanDailyMaxTemperature = data.MeanDailyMaxTemperature,
-                    MeanDailyMinTemperature = data.MeanDailyMinTemperature,
-                    DaysOfAirFrost = data.DaysOfAirFrost,
-                    TotalRainfallMillimeters = data.TotalRainfallMillimeters,
-                    TotalSunshineHours = data.TotalSunshineHours,
-                    IsProvisional = data.IsProvisional,
-                })
-                .ToList()
-        );
+        var result = historicData
+            .Select(data => new WeatherStationHistoricDataDto
+            {
+                Year = data.Year,
+                Month = data.Month,
+                MeanDailyMaxTemperature = data.MeanDailyMaxTemperature,
+                MeanDailyMinTemperature = data.MeanDailyMinTemperature,
+                DaysOfAirFrost = data.DaysOfAirFrost,
+                TotalRainfallMillimeters = data.TotalRainfallMillimeters,
+                TotalSunshineHours = data.TotalSunshineHours,
+                IsProvisional = data.IsProvisional,
+            })
+            .ToList();
+
+        return Result.Ok(result);
     }
 }

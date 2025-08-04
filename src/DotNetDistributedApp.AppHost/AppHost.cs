@@ -23,6 +23,7 @@ var cache = builder
 var spatialApi = builder
     .AddProject<Projects.DotNetDistributedApp_SpatialApi>("spatial-api")
     .WithHttpHealthCheck("/health")
+    .WithUrlForEndpoint("http", url => url.DisplayLocation = UrlDisplayLocation.DetailsOnly)
     .WithUrlForEndpoint(
         "https",
         url =>
@@ -35,6 +36,7 @@ var spatialApi = builder
 var api = builder
     .AddProject<Projects.DotNetDistributedApp_Api>("api")
     .WithHttpHealthCheck("/health")
+    .WithUrlForEndpoint("http", url => url.DisplayLocation = UrlDisplayLocation.DetailsOnly)
     .WithUrlForEndpoint(
         "https",
         url =>

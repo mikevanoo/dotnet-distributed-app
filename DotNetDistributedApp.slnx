@@ -1,22 +1,35 @@
 ﻿<Solution>
-  <Folder Name="/files/">
-    <File Path=".gitignore" />
-    <File Path="README.md" />
-    <File Path=".editorconfig" />
-    <File Path="lint-check.ps1" />
-    <File Path="lint-fix.ps1" />
-  </Folder>
-  <Folder Name="/src/">
-    <Project Path="src\DotNetDistributedApp.Api.Common\DotNetDistributedApp.Api.Common.csproj" Type="Classic C#" />
-    <Project Path="src\DotNetDistributedApp.Api.Data.MigrationService\DotNetDistributedApp.Api.Data.MigrationService.csproj" Type="Classic C#" />
-    <Project Path="src\DotNetDistributedApp.Api.Data\DotNetDistributedApp.Api.Data.csproj" Type="Classic C#" />
-    <Project Path="src\DotNetDistributedApp.Api\DotNetDistributedApp.Api.csproj" Type="Classic C#" />
-    <Project Path="src\DotNetDistributedApp.AppHost\DotNetDistributedApp.AppHost.csproj" Type="Classic C#" />
-    <Project Path="src\DotNetDistributedApp.ServiceDefaults\DotNetDistributedApp.ServiceDefaults.csproj" Type="Classic C#" />
-    <Project Path="src\DotNetDistributedApp.SpatialApi\DotNetDistributedApp.SpatialApi.csproj" Type="Classic C#" />
-  </Folder>
-  <Folder Name="/tests/">
-    <Project Path="tests\DotNetDistributedApp.IntegrationTests\DotNetDistributedApp.IntegrationTests.csproj" Type="Classic C#" />
-    <Project Path="tests\DotNetDistributedApp.SpatialApi.Tests\DotNetDistributedApp.SpatialApi.Tests.csproj" Type="Classic C#" />
-  </Folder>
+    <Folder Name="/files/">
+        <File Path=".gitignore" />
+        <File Path="README.md" />
+        <File Path=".editorconfig" />
+        <File Path="lint-check.ps1" />
+        <File Path="lint-fix.ps1" />
+        <File Path=".config\dotnet-tools.json" />
+    </Folder>
+    <Folder Name="/src/">
+        <Project Path="src\DotNetDistributedApp.Api.Common\DotNetDistributedApp.Api.Common.csproj" Type="Classic C#" />
+        <Project
+            Path="src\DotNetDistributedApp.Api.Data.MigrationService\DotNetDistributedApp.Api.Data.MigrationService.csproj"
+            Type="Classic C#"
+        />
+        <Project Path="src\DotNetDistributedApp.Api.Data\DotNetDistributedApp.Api.Data.csproj" Type="Classic C#" />
+        <Project Path="src\DotNetDistributedApp.Api\DotNetDistributedApp.Api.csproj" Type="Classic C#" />
+        <Project Path="src\DotNetDistributedApp.AppHost\DotNetDistributedApp.AppHost.csproj" Type="Classic C#" />
+        <Project
+            Path="src\DotNetDistributedApp.ServiceDefaults\DotNetDistributedApp.ServiceDefaults.csproj"
+            Type="Classic C#"
+        />
+        <Project Path="src\DotNetDistributedApp.SpatialApi\DotNetDistributedApp.SpatialApi.csproj" Type="Classic C#" />
+    </Folder>
+    <Folder Name="/tests/">
+        <Project
+            Path="tests\DotNetDistributedApp.IntegrationTests\DotNetDistributedApp.IntegrationTests.csproj"
+            Type="Classic C#"
+        />
+        <Project
+            Path="tests\DotNetDistributedApp.SpatialApi.Tests\DotNetDistributedApp.SpatialApi.Tests.csproj"
+            Type="Classic C#"
+        />
+    </Folder>
 </Solution>

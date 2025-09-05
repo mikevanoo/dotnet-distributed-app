@@ -22,8 +22,8 @@ var cache = builder
 
 var geoip = builder
     .AddContainer("geoip-api", "observabilitystack/geoip-api")
-    .WithHttpEndpoint(targetPort: 8080, name: "endpoint");
-var geoipEndpoint = geoip.GetEndpoint("endpoint");
+    .WithHttpEndpoint(targetPort: 8080, name: "http");
+var geoipEndpoint = geoip.GetEndpoint("http");
 
 var spatialApi = builder
     .AddProject<Projects.DotNetDistributedApp_SpatialApi>("spatial-api")

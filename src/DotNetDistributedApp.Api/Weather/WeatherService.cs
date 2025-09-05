@@ -7,7 +7,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DotNetDistributedApp.Api.Weather;
 
-public class WeatherService(WeatherDbContext dbContext, CoordinateConverterClient coordinateConverterClient)
+public class WeatherService(
+    WeatherDbContext dbContext,
+    CoordinateConverterClient coordinateConverterClient,
+    GeoIpClient geoIpClient,
+    ILogger<WeatherService> logger
+)
 {
     public async Task<Result<List<WeatherStationDto>>> GetWeatherStations()
     {
@@ -37,6 +42,12 @@ public class WeatherService(WeatherDbContext dbContext, CoordinateConverterClien
             .ToList();
 
         var result = (await Task.WhenAll(conversionTasks)).OfType<WeatherStationDto>().ToList();
+
+        var geoInfo = await geoIpClient.GetGeoInformation("8.8.8.8");
+        if (geoInfo.IsSuccess)
+        {
+            logger.LogInformation("AsnNetwork={AsnNetwork}", geoInfo.Value.AsnNetwork);
+        }
 
         return Result.Ok(result);
     }

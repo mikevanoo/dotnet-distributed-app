@@ -34,6 +34,11 @@ try
     {
         client.BaseAddress = new("https://spatial-api");
     });
+    builder.Services.AddHttpClient<GeoIpClient>(client =>
+    {
+        client.BaseAddress = new("http://geoip-api");
+    });
+
     builder.Services.AddApiDatabaseContext<WeatherDbContext>(builder.Configuration).AddScoped<WeatherService>();
 
     var app = builder.Build();

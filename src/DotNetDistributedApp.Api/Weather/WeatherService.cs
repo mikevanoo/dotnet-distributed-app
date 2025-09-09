@@ -14,7 +14,7 @@ public class WeatherService(
     ILogger<WeatherService> logger
 )
 {
-    public async Task<Result<List<WeatherStationDto>>> GetWeatherStations()
+    public async Task<Result<ResponseDto<List<WeatherStationDto>>>> GetWeatherStations()
     {
         var stations = await dbContext.WeatherStations.OrderBy(x => x.DisplayName).ToListAsync();
 
@@ -43,13 +43,15 @@ public class WeatherService(
 
         var result = (await Task.WhenAll(conversionTasks)).OfType<WeatherStationDto>().ToList();
 
-        var geoInfo = await geoIpClient.GetGeoInformation("8.8.8.8");
-        if (geoInfo.IsSuccess)
+        // The IP address should be taken from HttpContext, correctly resolved through x-forwarded headers.
+        var ipAddress = "8.8.8.8";
+        var geoInfo = await geoIpClient.GetGeoInformation(ipAddress);
+        if (geoInfo.IsFailed)
         {
-            logger.LogInformation("AsnNetwork={AsnNetwork}", geoInfo.Value.AsnNetwork);
+            return Result.Fail(geoInfo.Errors);
         }
 
-        return Result.Ok(result);
+        return Result.Ok(ResponseDto.Create(result, geoInfo.Value));
     }
 
     [SuppressMessage("Globalization", "CA1304:Specify CultureInfo")]
@@ -58,7 +60,9 @@ public class WeatherService(
         "Performance",
         "CA1862:Use the \'StringComparison\' method overloads to perform case-insensitive string comparisons"
     )]
-    public async Task<Result<List<WeatherStationHistoricDataDto>>> GetWeatherStationHistoricData(string stationKey)
+    public async Task<Result<ResponseDto<List<WeatherStationHistoricDataDto>>>> GetWeatherStationHistoricData(
+        string stationKey
+    )
     {
         var station = await dbContext.WeatherStations.SingleOrDefaultAsync(x =>
             x.Key.ToUpper() == stationKey.ToUpper()
@@ -88,6 +92,6 @@ public class WeatherService(
             })
             .ToList();
 
-        return Result.Ok(result);
+        return Result.Ok(ResponseDto.Create(result));
     }
 }

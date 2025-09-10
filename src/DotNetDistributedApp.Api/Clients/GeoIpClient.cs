@@ -3,17 +3,20 @@ using FluentResults;
 
 namespace DotNetDistributedApp.Api.Clients;
 
-public class GeoIpClient(HttpClient httpClient)
+public class GeoIpClient(HttpClient httpClient, ILogger<GeoIpClient> logger)
 {
-    public async Task<Result<GeoIpResponseDto>> GetGeoInformation(string ipAddress)
+    public async Task<GeoIpResponseDto?> GetGeoInformation(string ipAddress)
     {
         var url = $"/{ipAddress}";
-        var result = await httpClient.GetFromJsonAsync<GeoIpResponseDto>(url);
-        if (result is null)
+        var response = await httpClient.GetAsync(url);
+        if (!response.IsSuccessStatusCode)
         {
-            return Result.Fail(new NotFoundError($"Could not get geo information for IP address {ipAddress}"));
+            logger.LogWarning("Could not get geo information for IP address {IpAddress}", ipAddress);
+            return null;
         }
 
-        return Result.Ok(result);
+        var result = await response.Content.ReadFromJsonAsync<GeoIpResponseDto>();
+
+        return result;
     }
 }

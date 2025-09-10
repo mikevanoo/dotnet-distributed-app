@@ -11,7 +11,25 @@ public class WeatherStationsShould(AppHostFixture appHostFixture)
 
         var response = await httpClient.GetAsync("/weather/stations", AppHostFixture.CreateCancellationToken());
 
-        response.Should().Be200Ok().And.Satisfy<IEnumerable<object>>(model => model.Should().HaveCount(2));
+        response
+            .Should()
+            .Be200Ok()
+            .And.Satisfy<ResponseDto<IEnumerable<object>>>(model => model.Response.Should().HaveCount(2));
+    }
+
+    [Fact]
+    public async Task GetWeatherStationsReturn200OkAndExpectedGeoInformation()
+    {
+        var httpClient = appHostFixture.App.CreateHttpClient("api");
+
+        var response = await httpClient.GetAsync("/weather/stations", AppHostFixture.CreateCancellationToken());
+
+        response
+            .Should()
+            .Be200Ok()
+            .And.Satisfy<ResponseDto<IEnumerable<object>>>(model =>
+                model.Metadata.GeoData.Country.Should().NotBeEmpty()
+            );
     }
 
     [Fact]
@@ -37,6 +55,9 @@ public class WeatherStationsShould(AppHostFixture appHostFixture)
             AppHostFixture.CreateCancellationToken()
         );
 
-        response.Should().Be200Ok().And.Satisfy<IEnumerable<object>>(model => model.Should().HaveCountGreaterThan(0));
+        response
+            .Should()
+            .Be200Ok()
+            .And.Satisfy<ResponseDto<IEnumerable<object>>>(model => model.Response.Should().HaveCountGreaterThan(0));
     }
 }

@@ -44,14 +44,9 @@ public class WeatherService(
         var result = (await Task.WhenAll(conversionTasks)).OfType<WeatherStationDto>().ToList();
 
         // The IP address should be taken from HttpContext, correctly resolved through x-forwarded headers.
-        var ipAddress = "8.8.8.8";
-        var geoInfo = await geoIpClient.GetGeoInformation(ipAddress);
-        if (geoInfo.IsFailed)
-        {
-            return Result.Fail(geoInfo.Errors);
-        }
+        var geoInfo = await geoIpClient.GetGeoInformation("8.8.8.8");
 
-        return Result.Ok(ResponseDto.Create(result, geoInfo.Value));
+        return Result.Ok(ResponseDto.Create(result, geoInfo));
     }
 
     [SuppressMessage("Globalization", "CA1304:Specify CultureInfo")]

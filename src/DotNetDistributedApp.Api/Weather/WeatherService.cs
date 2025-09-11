@@ -10,8 +10,7 @@ namespace DotNetDistributedApp.Api.Weather;
 public class WeatherService(
     WeatherDbContext dbContext,
     CoordinateConverterClient coordinateConverterClient,
-    GeoIpClient geoIpClient,
-    ILogger<WeatherService> logger
+    GeoIpClient geoIpClient
 )
 {
     public async Task<Result<ResponseDto<List<WeatherStationDto>>>> GetWeatherStations()

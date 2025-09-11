@@ -13,7 +13,7 @@ public class ResponseDto<T>() : ResponseDto
 public class ResponseMetadataDto
 {
     public DateTimeOffset Timestamp { get; set; }
-    public ResponseGeoDataDto GeoData { get; set; }
+    public ResponseGeoDataDto? GeoData { get; set; }
 }
 
 public class ResponseGeoDataDto

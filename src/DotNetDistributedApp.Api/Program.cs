@@ -41,10 +41,20 @@ try
 
     builder.Services.AddApiDatabaseContext<WeatherDbContext>(builder.Configuration).AddScoped<WeatherService>();
 
+    builder.AddRedisOutputCache(connectionName: "cache");
+    builder.Services.AddOutputCache(options =>
+    {
+        options.AddPolicy(
+            "WeatherStationHistoricData",
+            policyBuilder => policyBuilder.SetVaryByRouteValue("stationKey").Expire(TimeSpan.FromSeconds(30))
+        );
+    });
+
     var app = builder.Build();
 
     // Configure the HTTP request pipeline.
     app.UseExceptionHandler();
+    app.UseOutputCache();
 
     if (app.Environment.IsDevelopment())
     {
@@ -61,11 +71,13 @@ try
         async ([FromServices] WeatherService weatherService) =>
             (await weatherService.GetWeatherStations()).ToApiResponse()
     );
-    weatherGroup.MapGet(
-        "/stations/{stationKey}/historic-data",
-        async ([FromServices] WeatherService weatherService, string stationKey) =>
-            (await weatherService.GetWeatherStationHistoricData(stationKey)).ToApiResponse()
-    );
+    weatherGroup
+        .MapGet(
+            "/stations/{stationKey}/historic-data",
+            async ([FromServices] WeatherService weatherService, string stationKey) =>
+                (await weatherService.GetWeatherStationHistoricData(stationKey)).ToApiResponse()
+        )
+        .CacheOutput("WeatherStationHistoricData");
 
     app.MapDefaultEndpoints();
 

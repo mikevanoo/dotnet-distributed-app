@@ -56,6 +56,8 @@ var api = builder
     .WithReference(spatialApi)
     .WaitFor(spatialApi)
     .WithReference(geoipEndpoint)
-    .WaitFor(geoip);
+    .WaitFor(geoip)
+    .WithReference(cache)
+    .WaitFor(cache);
 
 builder.Build().Run();

@@ -28,8 +28,10 @@ public class WeatherStationsShould(AppHostFixture appHostFixture)
             .Should()
             .Be200Ok()
             .And.Satisfy<ResponseDto<IEnumerable<object>>>(model =>
-                model.Metadata.GeoData.Country.Should().NotBeEmpty()
-            );
+            {
+                model.Metadata.GeoData.Should().NotBeNull();
+                model.Metadata.GeoData.Country.Should().NotBeEmpty();
+            });
     }
 
     [Fact]

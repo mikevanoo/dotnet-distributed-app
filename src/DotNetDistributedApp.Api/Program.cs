@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json.Serialization;
+using DotNetDistributedApp.Api;
 using DotNetDistributedApp.Api.Clients;
 using DotNetDistributedApp.Api.Common;
 using DotNetDistributedApp.Api.Data;
@@ -47,7 +48,7 @@ try
     builder.Services.AddOutputCache(options =>
     {
         options.AddPolicy(
-            "WeatherStationHistoricData",
+            Constants.CachePolicy.WeatherStationHistoricData,
             policyBuilder => policyBuilder.SetVaryByRouteValue("stationKey").Expire(TimeSpan.FromSeconds(30))
         );
     });
@@ -87,7 +88,7 @@ try
             async ([FromServices] WeatherService weatherService, string stationKey) =>
                 (await weatherService.GetWeatherStationHistoricData(stationKey)).ToApiResponse()
         )
-        .CacheOutput("WeatherStationHistoricData");
+        .CacheOutput(Constants.CachePolicy.WeatherStationHistoricData);
 
     app.MapDefaultEndpoints();
 

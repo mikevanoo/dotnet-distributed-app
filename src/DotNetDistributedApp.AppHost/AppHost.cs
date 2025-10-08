@@ -1,3 +1,5 @@
+using DotNetDistributedApp.AppHost;
+
 var builder = DistributedApplication.CreateBuilder(args);
 
 var apiDatabaseServer = builder.AddPostgres("api-database-server").WithDataVolume(isReadOnly: false);
@@ -14,8 +16,8 @@ var apiDatabaseMigrations = builder
     .WaitFor(apiDatabase);
 
 var cache = builder
-    .AddRedis("cache")
-    .WithRedisInsight(configureContainer =>
+    .AddValkey("cache")
+    .WithRedisInsightForValkey(configureContainer =>
     {
         configureContainer.WithExplicitStart();
     });

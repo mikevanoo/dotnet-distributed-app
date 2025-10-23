@@ -1,7 +1,10 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using DotNetDistributedApp.Api.Clients;
 using DotNetDistributedApp.Api.Common.Errors;
 using DotNetDistributedApp.Api.Data.Weather;
+using DotNetDistributedApp.Api.DTOs;
+using DotNetDistributedApp.Api.Metrics;
 using FluentResults;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,7 +13,8 @@ namespace DotNetDistributedApp.Api.Weather;
 public class WeatherService(
     WeatherDbContext dbContext,
     CoordinateConverterClient coordinateConverterClient,
-    GeoIpClient geoIpClient
+    GeoIpClient geoIpClient,
+    IMetricsService metricsService
 )
 {
     public async Task<Result<ResponseDto<List<WeatherStationDto>>>> GetWeatherStations()
@@ -66,11 +70,15 @@ public class WeatherService(
             return Result.Fail(new NotFoundError($"Weather Station {stationKey} not found"));
         }
 
+        Stopwatch stopWatch = new();
+        stopWatch.Start();
         var historicData = await dbContext
             .WeatherStationHistoricData.Where(x => x.WeatherStationId == station.Id)
             .OrderByDescending(x => x.Year)
             .ThenByDescending(x => x.Month)
             .ToListAsync();
+        stopWatch.Stop();
+        metricsService.DatabaseQueryTime(stopWatch.ElapsedMilliseconds, "WeatherStationHistoricData");
 
         var result = historicData
             .Select(data => new WeatherStationHistoricDataDto

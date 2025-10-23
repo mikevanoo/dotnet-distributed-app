@@ -1,6 +1,6 @@
 ﻿using DotNetDistributedApp.Api.Clients;
 
-namespace DotNetDistributedApp.Api;
+namespace DotNetDistributedApp.Api.DTOs;
 
 public class ResponseDto
 {

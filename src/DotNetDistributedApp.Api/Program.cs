@@ -5,6 +5,7 @@ using DotNetDistributedApp.Api.Clients;
 using DotNetDistributedApp.Api.Common;
 using DotNetDistributedApp.Api.Data;
 using DotNetDistributedApp.Api.Data.Weather;
+using DotNetDistributedApp.Api.Metrics;
 using DotNetDistributedApp.Api.Weather;
 using DotNetDistributedApp.ServiceDefaults;
 using Microsoft.AspNetCore.Mvc;
@@ -60,6 +61,7 @@ try
             LocalCacheExpiration = TimeSpan.FromSeconds(10),
         };
     });
+    builder.Services.AddSingleton<IMetricsService, MetricsService>();
 
     var app = builder.Build();
 

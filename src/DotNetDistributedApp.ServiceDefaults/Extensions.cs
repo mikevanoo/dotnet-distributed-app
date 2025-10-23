@@ -54,7 +54,12 @@ public static class Extensions
             .Services.AddOpenTelemetry()
             .WithMetrics(metrics =>
             {
-                metrics.AddAspNetCoreInstrumentation().AddHttpClientInstrumentation().AddRuntimeInstrumentation();
+                metrics
+                    .AddRuntimeInstrumentation()
+                    .AddAspNetCoreInstrumentation()
+                    .AddHttpClientInstrumentation()
+                    .AddNpgsqlInstrumentation()
+                    .AddMeter("DotNetDistributedApp.Api");
             })
             .WithTracing(tracing =>
             {

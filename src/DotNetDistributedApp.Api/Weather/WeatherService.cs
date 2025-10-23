@@ -2,6 +2,7 @@
 using DotNetDistributedApp.Api.Clients;
 using DotNetDistributedApp.Api.Common.Errors;
 using DotNetDistributedApp.Api.Data.Weather;
+using DotNetDistributedApp.Api.DTOs;
 using FluentResults;
 using Microsoft.EntityFrameworkCore;
 

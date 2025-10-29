@@ -6,6 +6,6 @@
   </PropertyGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
-    <PackageReference Include="FluentResults" Version="4.0.0" />
+    <PackageReference Include="FluentResults" />
   </ItemGroup>
 </Project>

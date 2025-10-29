@@ -8,9 +8,9 @@
     <UserSecretsId>fcd287fe-e010-4c97-b87b-ca16697faec6</UserSecretsId>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Aspire.Hosting.AppHost" Version="9.5.2" />
-    <PackageReference Include="Aspire.Hosting.PostgreSQL" Version="9.5.2" />
-    <PackageReference Include="Aspire.Hosting.Valkey" Version="9.5.2" />
+    <PackageReference Include="Aspire.Hosting.AppHost" />
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" />
+    <PackageReference Include="Aspire.Hosting.Valkey" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\DotNetDistributedApp.Api.Data.MigrationService\DotNetDistributedApp.Api.Data.MigrationService.csproj" />

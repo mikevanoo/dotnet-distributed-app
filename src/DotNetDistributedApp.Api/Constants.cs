@@ -6,4 +6,9 @@ public static class Constants
     {
         public const string WeatherStationHistoricData = "WeatherStationHistoricDataCachePolicy";
     }
+
+    public static class Topics
+    {
+        public const string Common = "common";
+    }
 }

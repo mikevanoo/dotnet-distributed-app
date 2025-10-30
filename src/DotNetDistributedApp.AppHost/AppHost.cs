@@ -40,6 +40,10 @@ var spatialApi = builder
         }
     );
 
+// WithExplicitStart() doesn't work when starting from the Dashboard. See https://github.com/dotnet/aspire/issues/12516
+// .WithKafkaUI(configureContainer => { configureContainer.WithExplicitStart(); });
+var events = builder.AddKafka("events").WithKafkaUI();
+
 var api = builder
     .AddProject<Projects.DotNetDistributedApp_Api>("api")
     .WithHttpHealthCheck("/health")
@@ -60,6 +64,8 @@ var api = builder
     .WithReference(geoipEndpoint)
     .WaitFor(geoip)
     .WithReference(cache)
-    .WaitFor(cache);
+    .WaitFor(cache)
+    .WithReference(events)
+    .WaitFor(events);
 
 builder.Build().Run();

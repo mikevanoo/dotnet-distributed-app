@@ -1,8 +1,13 @@
 ﻿using Confluent.Kafka;
+using DotNetDistributedApp.Api.Metrics;
 
 namespace DotNetDistributedApp.Api.Events;
 
-public class EventsService<T>(IProducer<string, T> producer) : IEventsService<T>
+public class EventsService<T>(
+    IProducer<string, T> producer,
+    IMetricsService metricsService,
+    ILogger<EventsService<T>> logger
+) : IEventsService<T>
     where T : BaseEventPayloadDto
 {
     public async Task SendEvent(string topic, T payload)
@@ -13,7 +18,22 @@ public class EventsService<T>(IProducer<string, T> producer) : IEventsService<T>
             Key = payload.PartitionKey,
             Value = payload,
         };
-        var deliveryResult = await producer.ProduceAsync(topic, message);
-        // deliveryResult.Status
+
+        try
+        {
+            await producer.ProduceAsync(topic, message);
+            metricsService.SendEventSuccess(1, topic, payload.EventName);
+        }
+        catch (ProduceException<string, T> ex)
+        {
+            logger.LogError(
+                ex,
+                "Failed to send event: Topic:{Topic}, Name={EventName}, PartitionKey:{PartitionKey}",
+                topic,
+                payload.EventName,
+                payload.PartitionKey
+            );
+            metricsService.SendEventFailed(1, topic, payload.EventName);
+        }
     }
 }

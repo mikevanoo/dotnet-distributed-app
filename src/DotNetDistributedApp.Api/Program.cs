@@ -4,10 +4,11 @@ using System.Text.Json.Serialization;
 using DotNetDistributedApp.Api;
 using DotNetDistributedApp.Api.Clients;
 using DotNetDistributedApp.Api.Common;
+using DotNetDistributedApp.Api.Common.Events;
+using DotNetDistributedApp.Api.Common.Metrics;
 using DotNetDistributedApp.Api.Data;
 using DotNetDistributedApp.Api.Data.Weather;
 using DotNetDistributedApp.Api.Events;
-using DotNetDistributedApp.Api.Metrics;
 using DotNetDistributedApp.Api.Weather;
 using DotNetDistributedApp.ServiceDefaults;
 using Microsoft.AspNetCore.Mvc;
@@ -110,11 +111,7 @@ try
         async (
             [FromBody] [Required] Event1Request body,
             [FromServices] IEventsService<Event1PayloadDto> eventsService
-        ) =>
-            await eventsService.SendEvent(
-                Constants.Topics.Common,
-                new Event1PayloadDto(Guid.NewGuid().ToString(), body.Value)
-            )
+        ) => await eventsService.SendEvent(Topics.Common, new Event1PayloadDto(Guid.NewGuid().ToString(), body.Value))
     );
 
     app.MapDefaultEndpoints();

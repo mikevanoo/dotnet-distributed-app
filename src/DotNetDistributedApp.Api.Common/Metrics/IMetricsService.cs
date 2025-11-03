@@ -1,4 +1,4 @@
-﻿namespace DotNetDistributedApp.Api.Metrics;
+﻿namespace DotNetDistributedApp.Api.Common.Metrics;
 
 public interface IMetricsService
 {

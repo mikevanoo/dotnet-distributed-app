@@ -1,4 +1,4 @@
-﻿namespace DotNetDistributedApp.Api.Events;
+﻿namespace DotNetDistributedApp.Api.Common.Events;
 
 public class Event1PayloadDto(string partitionKey, string value) : BaseEventPayloadDto(partitionKey)
 {

@@ -1,4 +1,4 @@
-﻿using DotNetDistributedApp.Api.Metrics;
+﻿using DotNetDistributedApp.Api.Common.Metrics;
 using Microsoft.Extensions.Caching.Hybrid;
 
 namespace DotNetDistributedApp.Api.Clients;

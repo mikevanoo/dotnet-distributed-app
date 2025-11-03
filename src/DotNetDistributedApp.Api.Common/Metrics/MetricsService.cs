@@ -1,7 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Diagnostics.Metrics;
 
-namespace DotNetDistributedApp.Api.Metrics;
+namespace DotNetDistributedApp.Api.Common.Metrics;
 
 public class MetricsService : IMetricsService
 {

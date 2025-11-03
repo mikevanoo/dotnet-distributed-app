@@ -1,5 +1,6 @@
 ﻿using Confluent.Kafka;
-using DotNetDistributedApp.Api.Metrics;
+using DotNetDistributedApp.Api.Common.Events;
+using DotNetDistributedApp.Api.Common.Metrics;
 
 namespace DotNetDistributedApp.Api.Events;
 

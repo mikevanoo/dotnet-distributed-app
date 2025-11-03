@@ -1,4 +1,6 @@
-﻿namespace DotNetDistributedApp.Api.Events;
+﻿using DotNetDistributedApp.Api.Common.Events;
+
+namespace DotNetDistributedApp.Api.Events;
 
 public interface IEventsService<T>
     where T : BaseEventPayloadDto

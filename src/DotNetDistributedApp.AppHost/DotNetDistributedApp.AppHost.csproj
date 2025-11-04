@@ -16,7 +16,11 @@
   <ItemGroup>
     <ProjectReference Include="..\DotNetDistributedApp.Api.Data.MigrationService\DotNetDistributedApp.Api.Data.MigrationService.csproj" />
     <ProjectReference Include="..\DotNetDistributedApp.Api\DotNetDistributedApp.Api.csproj" />
-    <ProjectReference Include="..\DotNetDistributedApp.ServiceDefaults\DotNetDistributedApp.ServiceDefaults.csproj" IsAspireProjectResource="false" />
+    <ProjectReference Include="..\DotNetDistributedApp.EventsConsumer\DotNetDistributedApp.EventsConsumer.csproj" />
+    <ProjectReference
+      Include="..\DotNetDistributedApp.ServiceDefaults\DotNetDistributedApp.ServiceDefaults.csproj"
+      IsAspireProjectResource="false"
+    />
     <ProjectReference Include="..\DotNetDistributedApp.SpatialApi\DotNetDistributedApp.SpatialApi.csproj" />
   </ItemGroup>
 </Project>

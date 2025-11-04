@@ -73,4 +73,10 @@ var api = builder
     .WithReference(events)
     .WaitFor(events);
 
+var eventsConsumer = builder
+    .AddProject<Projects.DotNetDistributedApp_EventsConsumer>("events-consumer")
+    .WithExplicitStart()
+    .WithReference(events)
+    .WaitFor(events);
+
 builder.Build().Run();

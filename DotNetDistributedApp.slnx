@@ -14,6 +14,7 @@
     <Project Path="src\DotNetDistributedApp.Api.Data\DotNetDistributedApp.Api.Data.csproj" Type="Classic C#" />
     <Project Path="src\DotNetDistributedApp.Api\DotNetDistributedApp.Api.csproj" Type="Classic C#" />
     <Project Path="src\DotNetDistributedApp.AppHost\DotNetDistributedApp.AppHost.csproj" Type="Classic C#" />
+    <Project Path="src\DotNetDistributedApp.EventsConsumer\DotNetDistributedApp.EventsConsumer.csproj" Type="Classic C#" />
     <Project Path="src\DotNetDistributedApp.ServiceDefaults\DotNetDistributedApp.ServiceDefaults.csproj" Type="Classic C#" />
     <Project Path="src\DotNetDistributedApp.SpatialApi\DotNetDistributedApp.SpatialApi.csproj" Type="Classic C#" />
   </Folder>

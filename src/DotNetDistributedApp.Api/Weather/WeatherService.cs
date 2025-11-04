@@ -2,9 +2,9 @@
 using System.Diagnostics.CodeAnalysis;
 using DotNetDistributedApp.Api.Clients;
 using DotNetDistributedApp.Api.Common.Errors;
+using DotNetDistributedApp.Api.Common.Metrics;
 using DotNetDistributedApp.Api.Data.Weather;
 using DotNetDistributedApp.Api.DTOs;
-using DotNetDistributedApp.Api.Metrics;
 using FluentResults;
 using Microsoft.EntityFrameworkCore;
 

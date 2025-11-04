@@ -6,6 +6,7 @@ var apiDatabaseServer = builder.AddPostgres("api-database-server").WithDataVolum
 apiDatabaseServer.WithPgAdmin(configureContainer =>
 {
     configureContainer.WithExplicitStart();
+    configureContainer.WithParentRelationship(apiDatabaseServer);
 });
 var apiDatabase = apiDatabaseServer.AddDatabase("api-database");
 
@@ -15,12 +16,12 @@ var apiDatabaseMigrations = builder
     .WithParentRelationship(apiDatabase)
     .WaitFor(apiDatabase);
 
-var cache = builder
-    .AddValkey("cache")
-    .WithRedisInsightForValkey(configureContainer =>
-    {
-        configureContainer.WithExplicitStart();
-    });
+var cache = builder.AddValkey("cache");
+cache.WithRedisInsightForValkey(configureContainer =>
+{
+    configureContainer.WithExplicitStart();
+    configureContainer.WithParentRelationship(cache);
+});
 
 var geoip = builder
     .AddContainer("geoip-api", "observabilitystack/geoip-api")
@@ -39,6 +40,14 @@ var spatialApi = builder
             url.Url = "/swagger";
         }
     );
+
+// WithExplicitStart() doesn't work when starting from the Dashboard. See https://github.com/dotnet/aspire/issues/12516
+// .WithKafkaUI(configureContainer => { configureContainer.WithExplicitStart(); });
+var events = builder.AddKafka("events");
+events.WithKafkaUI(configureContainer =>
+{
+    configureContainer.WithParentRelationship(events);
+});
 
 var api = builder
     .AddProject<Projects.DotNetDistributedApp_Api>("api")
@@ -60,6 +69,14 @@ var api = builder
     .WithReference(geoipEndpoint)
     .WaitFor(geoip)
     .WithReference(cache)
-    .WaitFor(cache);
+    .WaitFor(cache)
+    .WithReference(events)
+    .WaitFor(events);
+
+var eventsConsumer = builder
+    .AddProject<Projects.DotNetDistributedApp_EventsConsumer>("events-consumer")
+    .WithExplicitStart()
+    .WithReference(events)
+    .WaitFor(events);
 
 builder.Build().Run();

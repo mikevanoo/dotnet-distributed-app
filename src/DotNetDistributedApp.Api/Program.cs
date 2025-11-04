@@ -1,11 +1,14 @@
+using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.Text.Json.Serialization;
 using DotNetDistributedApp.Api;
 using DotNetDistributedApp.Api.Clients;
 using DotNetDistributedApp.Api.Common;
+using DotNetDistributedApp.Api.Common.Events;
+using DotNetDistributedApp.Api.Common.Metrics;
 using DotNetDistributedApp.Api.Data;
 using DotNetDistributedApp.Api.Data.Weather;
-using DotNetDistributedApp.Api.Metrics;
+using DotNetDistributedApp.Api.Events;
 using DotNetDistributedApp.Api.Weather;
 using DotNetDistributedApp.ServiceDefaults;
 using Microsoft.AspNetCore.Mvc;
@@ -63,6 +66,16 @@ try
     });
     builder.Services.AddSingleton<IMetricsService, MetricsService>();
 
+    builder.AddKafkaProducer<string, Event1PayloadDto>(
+        "events",
+        static producerBuilder =>
+        {
+            var messageSerializer = new EventJsonSerializer<Event1PayloadDto>();
+            producerBuilder.SetValueSerializer(messageSerializer);
+        }
+    );
+    builder.Services.AddScoped<IEventsService<Event1PayloadDto>, EventsService<Event1PayloadDto>>();
+
     var app = builder.Build();
 
     // Configure the HTTP request pipeline.
@@ -91,6 +104,15 @@ try
                 (await weatherService.GetWeatherStationHistoricData(stationKey)).ToApiResponse()
         )
         .CacheOutput(Constants.CachePolicy.WeatherStationHistoricData);
+
+    var eventsGroup = app.MapGroup("/events");
+    eventsGroup.MapPost(
+        "/event1",
+        async (
+            [FromBody] [Required] Event1Request body,
+            [FromServices] IEventsService<Event1PayloadDto> eventsService
+        ) => await eventsService.SendEvent(Topics.Common, new Event1PayloadDto(Guid.NewGuid().ToString(), body.Value))
+    );
 
     app.MapDefaultEndpoints();
 

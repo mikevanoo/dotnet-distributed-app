@@ -8,7 +8,7 @@ namespace DotNetDistributedApp.IntegrationTests;
 
 public class AppHostFixture : IAsyncLifetime
 {
-    public static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(30);
+    public static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(60);
     public DistributedApplication App { get; private set; } = null!;
 
     public async ValueTask InitializeAsync()

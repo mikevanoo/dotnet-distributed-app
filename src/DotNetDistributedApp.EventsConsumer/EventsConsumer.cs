@@ -22,9 +22,20 @@ public class EventsConsumer<T>(
         while (!stoppingToken.IsCancellationRequested)
         {
             var consumeResult = eventConsumer.Consume(stoppingToken);
+            var topic = consumeResult.Topic;
+            var eventName = consumeResult.Message.Value.EventName;
 
-            var valueJson = JsonSerializer.Serialize(consumeResult.Message.Value);
-            logger.LogInformation("Consumed message: {Key} - {Value}", consumeResult.Message.Key, valueJson);
+            switch (eventName)
+            {
+                case "event1":
+                    metricsService.ConsumeEventSuccess(1, topic, eventName);
+                    var valueJson = JsonSerializer.Serialize(consumeResult.Message.Value);
+                    logger.LogInformation("Consumed message: {EventName} - {Value}", eventName, valueJson);
+                    break;
+                default:
+                    metricsService.ConsumeEventUnrecognised(1, topic, eventName);
+                    break;
+            }
 
             eventConsumer.Commit();
         }

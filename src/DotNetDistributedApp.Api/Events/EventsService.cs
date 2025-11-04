@@ -23,7 +23,7 @@ public class EventsService<T>(
         try
         {
             await producer.ProduceAsync(topic, message);
-            metricsService.SendEventSuccess(1, topic, payload.EventName);
+            metricsService.ProduceEventSuccess(1, topic, payload.EventName);
         }
         catch (ProduceException<string, T> ex)
         {
@@ -34,7 +34,7 @@ public class EventsService<T>(
                 payload.EventName,
                 payload.PartitionKey
             );
-            metricsService.SendEventFailed(1, topic, payload.EventName);
+            metricsService.ProduceEventFailed(1, topic, payload.EventName);
         }
     }
 }

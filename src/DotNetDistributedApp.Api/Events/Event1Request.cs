@@ -2,5 +2,5 @@
 
 public class Event1Request
 {
-    public string Value { get; set; }
+    public string Value { get; set; } = string.Empty;
 }

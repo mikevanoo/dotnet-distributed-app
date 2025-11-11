@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>dotnet-DotNetDistributedApp.Data.MigrationService-5e4acab6-9bc8-47ac-bfe4-3633989d254b</UserSecretsId>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Aspire.Confluent.Kafka" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DotNetDistributedApp.ServiceDefaults\DotNetDistributedApp.ServiceDefaults.csproj" />
+  </ItemGroup>
+</Project>

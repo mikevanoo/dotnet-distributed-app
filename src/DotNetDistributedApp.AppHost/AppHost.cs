@@ -49,6 +49,17 @@ events.WithKafkaUI(configureContainer =>
     configureContainer.WithParentRelationship(events);
 });
 
+var topicInitializer = builder
+    .AddProject<Projects.DotNetDistributedApp_Events_TopicInitialiser>("topic-initializer")
+    .WithParentRelationship(events)
+    .WithReference(events)
+    .WaitFor(events);
+
+var eventsConsumer = builder
+    .AddProject<Projects.DotNetDistributedApp_Events_Consumer>("events-consumer")
+    .WithReference(events)
+    .WaitForCompletion(topicInitializer);
+
 var api = builder
     .AddProject<Projects.DotNetDistributedApp_Api>("api")
     .WithHttpHealthCheck("/health")
@@ -70,12 +81,6 @@ var api = builder
     .WaitFor(geoip)
     .WithReference(cache)
     .WaitFor(cache)
-    .WithReference(events)
-    .WaitFor(events);
-
-var eventsConsumer = builder
-    .AddProject<Projects.DotNetDistributedApp_Events_Consumer>("events-consumer")
-    .WithExplicitStart()
     .WithReference(events)
     .WaitFor(events);
 

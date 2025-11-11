@@ -24,7 +24,7 @@ try
         settings =>
         {
             settings.Config.GroupId = "events-consumer";
-            settings.Config.AutoOffsetReset = AutoOffsetReset.Earliest; // process all events, even old ones
+            // settings.Config.AutoOffsetReset = AutoOffsetReset.Earliest; // process all events, even old ones
         },
         static consumerBuilder =>
         {

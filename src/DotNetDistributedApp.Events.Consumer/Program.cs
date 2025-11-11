@@ -2,7 +2,7 @@
 using Confluent.Kafka;
 using DotNetDistributedApp.Api.Common.Events;
 using DotNetDistributedApp.Api.Common.Metrics;
-using DotNetDistributedApp.EventsConsumer;
+using DotNetDistributedApp.Events.Consumer;
 using DotNetDistributedApp.ServiceDefaults;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -24,7 +24,7 @@ try
         settings =>
         {
             settings.Config.GroupId = "events-consumer";
-            settings.Config.AutoOffsetReset = AutoOffsetReset.Earliest; // process all events, even old ones
+            // settings.Config.AutoOffsetReset = AutoOffsetReset.Earliest; // process all events, even old ones
         },
         static consumerBuilder =>
         {

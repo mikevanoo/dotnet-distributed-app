@@ -5,7 +5,7 @@ using DotNetDistributedApp.Api.Common.Metrics;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace DotNetDistributedApp.EventsConsumer;
+namespace DotNetDistributedApp.Events.Consumer;
 
 public class EventsConsumer<T>(
     IConsumer<string, Event1PayloadDto> eventConsumer,

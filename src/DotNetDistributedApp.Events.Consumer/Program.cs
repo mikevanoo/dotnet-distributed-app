@@ -2,7 +2,7 @@
 using Confluent.Kafka;
 using DotNetDistributedApp.Api.Common.Events;
 using DotNetDistributedApp.Api.Common.Metrics;
-using DotNetDistributedApp.EventsConsumer;
+using DotNetDistributedApp.Events.Consumer;
 using DotNetDistributedApp.ServiceDefaults;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;

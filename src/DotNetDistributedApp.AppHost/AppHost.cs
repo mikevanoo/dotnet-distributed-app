@@ -41,12 +41,11 @@ var spatialApi = builder
         }
     );
 
-// WithExplicitStart() doesn't work when starting from the Dashboard. See https://github.com/dotnet/aspire/issues/12516
-// .WithKafkaUI(configureContainer => { configureContainer.WithExplicitStart(); });
 var events = builder.AddKafka("events");
 events.WithKafkaUI(configureContainer =>
 {
     configureContainer.WithParentRelationship(events);
+    configureContainer.WithExplicitStart();
 });
 
 var topicInitializer = builder
@@ -63,15 +62,7 @@ var eventsConsumer = builder
 var api = builder
     .AddProject<Projects.DotNetDistributedApp_Api>("api")
     .WithHttpHealthCheck("/health")
-    .WithUrlForEndpoint("http", url => url.DisplayLocation = UrlDisplayLocation.DetailsOnly)
-    .WithUrlForEndpoint(
-        "https",
-        url =>
-        {
-            url.DisplayText = "Swagger UI";
-            url.Url = "/swagger";
-        }
-    )
+    .WithUrl("/swagger", "Swagger UI")
     .WithReference(apiDatabase)
     .WithReference(apiDatabaseMigrations)
     .WaitForCompletion(apiDatabaseMigrations)

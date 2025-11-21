@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 
 namespace DotNetDistributedApp.Events.Consumer;
 
-public class EventsConsumer<T>(
+public partial class EventsConsumer<T>(
     IConsumer<string, Event1PayloadDto> eventConsumer,
     IMetricsService metricsService,
     ILogger<EventsConsumer<T>> logger
@@ -16,7 +16,7 @@ public class EventsConsumer<T>(
 {
     protected override Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        logger.LogInformation("Subscribing to topic: {Topic}", Topics.Common);
+        LogSubscribingToTopic(Topics.Common);
         eventConsumer.Subscribe(Topics.Common);
 
         while (!stoppingToken.IsCancellationRequested)
@@ -30,7 +30,7 @@ public class EventsConsumer<T>(
                 case "event1":
                     metricsService.ConsumeEventSuccess(1, topic, eventName);
                     var valueJson = JsonSerializer.Serialize(consumeResult.Message.Value);
-                    logger.LogInformation("Consumed message: {EventName} - {Value}", eventName, valueJson);
+                    LogConsumedMessage(eventName, valueJson);
                     break;
                 default:
                     metricsService.ConsumeEventUnrecognised(1, topic, eventName);
@@ -42,4 +42,10 @@ public class EventsConsumer<T>(
 
         return Task.CompletedTask;
     }
+
+    [LoggerMessage(LogLevel.Information, "Subscribing to topic: {Topic}")]
+    private partial void LogSubscribingToTopic(string topic);
+
+    [LoggerMessage(LogLevel.Information, "Consumed message: {EventName} - {Value}")]
+    private partial void LogConsumedMessage(string eventName, string value);
 }

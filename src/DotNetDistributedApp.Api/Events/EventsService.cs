@@ -4,7 +4,7 @@ using DotNetDistributedApp.Api.Common.Metrics;
 
 namespace DotNetDistributedApp.Api.Events;
 
-public class EventsService<T>(
+public partial class EventsService<T>(
     IProducer<string, T> producer,
     IMetricsService metricsService,
     ILogger<EventsService<T>> logger
@@ -27,14 +27,14 @@ public class EventsService<T>(
         }
         catch (ProduceException<string, T> ex)
         {
-            logger.LogError(
-                ex,
-                "Failed to send event: Topic:{Topic}, Name={EventName}, PartitionKey:{PartitionKey}",
-                topic,
-                payload.EventName,
-                payload.PartitionKey
-            );
+            LogFailedToSendEvent(ex, topic, payload.EventName, payload.PartitionKey);
             metricsService.ProduceEventFailed(1, topic, payload.EventName);
         }
     }
+
+    [LoggerMessage(
+        LogLevel.Error,
+        "Failed to send event: Topic:{Topic}, Name={EventName}, PartitionKey:{PartitionKey}"
+    )]
+    private partial void LogFailedToSendEvent(Exception ex, string topic, string eventName, string partitionKey);
 }

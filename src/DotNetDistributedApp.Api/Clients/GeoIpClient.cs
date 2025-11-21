@@ -3,7 +3,7 @@ using Microsoft.Extensions.Caching.Hybrid;
 
 namespace DotNetDistributedApp.Api.Clients;
 
-public class GeoIpClient(
+public partial class GeoIpClient(
     HttpClient httpClient,
     HybridCache cache,
     ILogger<GeoIpClient> logger,
@@ -21,17 +21,13 @@ public class GeoIpClient(
             async cancellationToken =>
             {
                 cacheMiss = true;
-                logger.LogInformation(
-                    "Cache miss for {CacheKey}, getting geo information for IP address {IpAddress}",
-                    cacheKey,
-                    ipAddress
-                );
+                LogCacheMiss(cacheKey, ipAddress);
                 metricsService.CacheMiss(1, cacheKey);
 
                 var response = await httpClient.GetAsync(url, cancellationToken);
                 if (!response.IsSuccessStatusCode)
                 {
-                    logger.LogWarning("Could not get geo information for IP address {IpAddress}", ipAddress);
+                    LogCouldNotGetGeoInformation(ipAddress);
                     return null;
                 }
 
@@ -48,4 +44,13 @@ public class GeoIpClient(
 
         return result;
     }
+
+    [LoggerMessage(
+        LogLevel.Information,
+        "Cache miss for {CacheKey}, getting geo information for IP address {IpAddress}"
+    )]
+    private partial void LogCacheMiss(string cacheKey, string ipAddress);
+
+    [LoggerMessage(LogLevel.Warning, "Could not get geo information for IP address {IpAddress}")]
+    private partial void LogCouldNotGetGeoInformation(string ipAddress);
 }

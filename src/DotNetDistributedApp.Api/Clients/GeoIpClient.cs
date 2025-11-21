@@ -3,10 +3,10 @@ using Microsoft.Extensions.Caching.Hybrid;
 
 namespace DotNetDistributedApp.Api.Clients;
 
-public class GeoIpClient(
+public partial class GeoIpClient(
     HttpClient httpClient,
     HybridCache cache,
-    GeoIpClientLogger logger,
+    ILogger<GeoIpClient> logger,
     IMetricsService metricsService
 )
 {
@@ -21,13 +21,13 @@ public class GeoIpClient(
             async cancellationToken =>
             {
                 cacheMiss = true;
-                logger.CacheMiss(cacheKey, ipAddress);
+                LogCacheMiss(cacheKey, ipAddress);
                 metricsService.CacheMiss(1, cacheKey);
 
                 var response = await httpClient.GetAsync(url, cancellationToken);
                 if (!response.IsSuccessStatusCode)
                 {
-                    logger.CouldNotGetGeoInformation(ipAddress);
+                    LogCouldNotGetGeoInformation(ipAddress);
                     return null;
                 }
 
@@ -44,16 +44,13 @@ public class GeoIpClient(
 
         return result;
     }
-}
 
-public partial class GeoIpClientLogger(ILogger<GeoIpClient> logger)
-{
     [LoggerMessage(
         LogLevel.Information,
-        "Cache miss for {cacheKey}, getting geo information for IP address {ipAddress}"
+        "Cache miss for {CacheKey}, getting geo information for IP address {IpAddress}"
     )]
-    public partial void CacheMiss(string cacheKey, string ipAddress);
+    private partial void LogCacheMiss(string cacheKey, string ipAddress);
 
-    [LoggerMessage(LogLevel.Warning, "Could not get geo information for IP address {ipAddress}")]
-    public partial void CouldNotGetGeoInformation(string ipAddress);
+    [LoggerMessage(LogLevel.Warning, "Could not get geo information for IP address {IpAddress}")]
+    private partial void LogCouldNotGetGeoInformation(string ipAddress);
 }

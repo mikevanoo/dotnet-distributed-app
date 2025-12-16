@@ -16,4 +16,7 @@
   <ItemGroup>
     <Folder Include="Migrations\" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Update="$(NuGetPackageRoot)\microsoft.codeanalysis.workspaces.msbuild\**\**" Visible="false" />
+  </ItemGroup>
 </Project>

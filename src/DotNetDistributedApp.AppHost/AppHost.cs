@@ -25,21 +25,14 @@ cache.WithRedisInsightForValkey(configureContainer =>
 
 var geoip = builder
     .AddContainer("geoip-api", "observabilitystack/geoip-api")
-    .WithHttpEndpoint(targetPort: 8080, name: "http");
+    .WithHttpEndpoint(targetPort: 8080, name: "http")
+    .WithUrl("/8.8.8.8", "Test for 8.8.8.8");
 var geoipEndpoint = geoip.GetEndpoint("http");
 
 var spatialApi = builder
     .AddProject<Projects.DotNetDistributedApp_SpatialApi>("spatial-api")
     .WithHttpHealthCheck("/health")
-    .WithUrlForEndpoint("http", url => url.DisplayLocation = UrlDisplayLocation.DetailsOnly)
-    .WithUrlForEndpoint(
-        "https",
-        url =>
-        {
-            url.DisplayText = "Swagger UI";
-            url.Url = "/swagger";
-        }
-    );
+    .WithUrl("/swagger", "Swagger UI");
 
 var events = builder.AddKafka("events");
 events.WithKafkaUI(configureContainer =>

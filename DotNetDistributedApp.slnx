@@ -1,28 +1,31 @@
 ﻿<Solution>
-  <Folder Name="/files/">
-    <File Path=".gitignore" />
-    <File Path="README.md" />
-    <File Path=".editorconfig" />
-    <File Path="Directory.Packages.props" />
-    <File Path="global.json" />
-    <File Path="lint-check.ps1" />
-    <File Path="lint-fix.ps1" />
-    <File Path=".config\dotnet-tools.json" />
-    <File Path=".github\workflows\dotnet.yml" />
-  </Folder>
-  <Folder Name="/src/">
-    <Project Path="src\DotNetDistributedApp.Api.Common\DotNetDistributedApp.Api.Common.csproj" />
-    <Project Path="src\DotNetDistributedApp.Api.Data.MigrationService\DotNetDistributedApp.Api.Data.MigrationService.csproj" />
-    <Project Path="src\DotNetDistributedApp.Api.Data\DotNetDistributedApp.Api.Data.csproj" />
-    <Project Path="src\DotNetDistributedApp.Api\DotNetDistributedApp.Api.csproj" />
-    <Project Path="src\DotNetDistributedApp.AppHost\DotNetDistributedApp.AppHost.csproj" />
-    <Project Path="src\DotNetDistributedApp.Events.Consumer\DotNetDistributedApp.Events.Consumer.csproj" />
-    <Project Path="src\DotNetDistributedApp.Events.TopicInitialiser\DotNetDistributedApp.Events.TopicInitialiser.csproj" />
-    <Project Path="src\DotNetDistributedApp.ServiceDefaults\DotNetDistributedApp.ServiceDefaults.csproj" />
-    <Project Path="src\DotNetDistributedApp.SpatialApi\DotNetDistributedApp.SpatialApi.csproj" />
-  </Folder>
-  <Folder Name="/tests/">
-    <Project Path="tests\DotNetDistributedApp.IntegrationTests\DotNetDistributedApp.IntegrationTests.csproj" />
-    <Project Path="tests\DotNetDistributedApp.SpatialApi.Tests\DotNetDistributedApp.SpatialApi.Tests.csproj" />
-  </Folder>
+    <Folder Name="/files/">
+        <File Path=".gitignore" />
+        <File Path="README.md" />
+        <File Path=".editorconfig" />
+        <File Path="Directory.Packages.props" />
+        <File Path="global.json" />
+        <File Path="lint-check.ps1" />
+        <File Path="lint-fix.ps1" />
+        <File Path=".config\dotnet-tools.json" />
+        <File Path=".github\workflows\dotnet.yml" />
+    </Folder>
+    <Folder Name="/src/">
+        <Project Path="src\DotNetDistributedApp.Api.Common\DotNetDistributedApp.Api.Common.csproj" />
+        <Project Path="src\DotNetDistributedApp.Api.Data.MigrationService\DotNetDistributedApp.Api.Data.MigrationService.csproj" />
+        <Project Path="src\DotNetDistributedApp.Api.Data\DotNetDistributedApp.Api.Data.csproj" />
+        <Project Path="src\DotNetDistributedApp.Api\DotNetDistributedApp.Api.csproj" />
+        <Project Path="src\DotNetDistributedApp.AppHost\DotNetDistributedApp.AppHost.csproj" />
+        <Project Path="src\DotNetDistributedApp.Events.Consumer\DotNetDistributedApp.Events.Consumer.csproj" />
+        <Project Path="src\DotNetDistributedApp.Events.TopicInitialiser\DotNetDistributedApp.Events.TopicInitialiser.csproj" />
+        <Project Path="src\DotNetDistributedApp.ServiceDefaults\DotNetDistributedApp.ServiceDefaults.csproj" />
+        <Project Path="src\DotNetDistributedApp.SpatialApi\DotNetDistributedApp.SpatialApi.csproj" />
+    </Folder>
+    <Folder Name="/tests/">
+        <Project Path="tests\DotNetDistributedApp.IntegrationTests\DotNetDistributedApp.IntegrationTests.csproj" />
+        <Project Path="tests\DotNetDistributedApp.SpatialApi.Tests\DotNetDistributedApp.SpatialApi.Tests.csproj" />
+    </Folder>
+    <Folder Name="/tests/files/">
+        <File Path="tests/Directory.Build.props" />
+    </Folder>
 </Solution>

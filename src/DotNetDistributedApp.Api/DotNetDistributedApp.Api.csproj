@@ -1,9 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
-  <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-  </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\DotNetDistributedApp.Api.Common\DotNetDistributedApp.Api.Common.csproj" />
     <ProjectReference Include="..\DotNetDistributedApp.Api.Data\DotNetDistributedApp.Api.Data.csproj" />

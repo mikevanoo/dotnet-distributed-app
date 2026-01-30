@@ -1,8 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk.Worker">
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>dotnet-DotNetDistributedApp.Data.MigrationService-d3ce20eb-5b3c-4966-a356-6cafdd330355</UserSecretsId>
   </PropertyGroup>
   <ItemGroup>

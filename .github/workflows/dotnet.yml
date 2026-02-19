@@ -24,6 +24,9 @@ jobs:
       with:
         global-json-file: global.json
 
+    - name: Install SSL Certificates
+      run: dotnet dev-certs https --trust
+
     - name: Restore dependencies
       run: dotnet restore
 

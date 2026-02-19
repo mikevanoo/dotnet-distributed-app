@@ -60,7 +60,10 @@ public class AppHostFixture : IAsyncLifetime
             .Build();
     }
 
-    public async Task<IConsumer<TKey, TValue>> CreateEventConsumer<TKey, TValue>(CancellationToken cancellationToken)
+    public async Task<IConsumer<TKey, TValue>> CreateEventConsumer<TKey, TValue>(
+        string topic,
+        CancellationToken cancellationToken
+    )
         where TValue : new()
     {
         var bootstrapServers = await GetKafkaConnectionString(cancellationToken);
@@ -70,9 +73,11 @@ public class AppHostFixture : IAsyncLifetime
             GroupId = Guid.NewGuid().ToString(),
             AutoOffsetReset = AutoOffsetReset.Earliest,
         };
-        return new ConsumerBuilder<TKey, TValue>(consumerConfig)
+        var consumer = new ConsumerBuilder<TKey, TValue>(consumerConfig)
             .SetValueDeserializer(new EventJsonSerializer<TValue>())
             .Build();
+        consumer.Subscribe(topic);
+        return consumer;
     }
 
     private async Task<string> GetKafkaConnectionString(CancellationToken cancellationToken) =>

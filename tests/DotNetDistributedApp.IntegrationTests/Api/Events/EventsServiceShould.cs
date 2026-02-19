@@ -1,5 +1,10 @@
-﻿using AwesomeAssertions;
+﻿using System.Diagnostics.Metrics;
+using AwesomeAssertions;
 using Confluent.Kafka;
+using DotNetDistributedApp.Api.Common.Events;
+using DotNetDistributedApp.Api.Common.Metrics;
+using DotNetDistributedApp.Api.Events;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DotNetDistributedApp.IntegrationTests.Api.Events;
 
@@ -10,9 +15,8 @@ public class EventsServiceShould(AppHostFixture appHostFixture)
     {
         // Arrange
         var ct = TestContext.Current.CancellationToken;
-        var topic = "apphost-e2e-topic";
+        var topic = Guid.NewGuid().ToString();
 
-        // Ask the running AppHost for the connection string of the "messaging" resource
         var bootstrapServers =
             await appHostFixture.App.GetConnectionStringAsync("events", ct)
             ?? throw new InvalidOperationException("Kafka connection string not found.");
@@ -21,24 +25,35 @@ public class EventsServiceShould(AppHostFixture appHostFixture)
         var consumerConfig = new ConsumerConfig
         {
             BootstrapServers = bootstrapServers,
-            GroupId = "apphost-test-consumer-group",
+            GroupId = Guid.NewGuid().ToString(),
             AutoOffsetReset = AutoOffsetReset.Earliest,
         };
 
         var expectedKey = "user-789";
         var expectedValue = "{\"status\": \"apphost-verified\"}";
 
-        // Act: Produce
-        using (var producer = new ProducerBuilder<string, string>(producerConfig).Build())
+        // Act
+        using (
+            var producer = new ProducerBuilder<string, Event1PayloadDto>(producerConfig)
+                .SetValueSerializer(new EventJsonSerializer<Event1PayloadDto>())
+                .Build()
+        )
         {
-            var message = new Message<string, string> { Key = expectedKey, Value = expectedValue };
-            var deliveryResult = await producer.ProduceAsync(topic, message, ct);
+            var service = new EventsService<Event1PayloadDto>(
+                producer,
+                new MetricsService(appHostFixture.App.Services.GetRequiredService<IMeterFactory>()),
+                new NullLogger<EventsService<Event1PayloadDto>>()
+            );
 
-            deliveryResult.Status.Should().Be(PersistenceStatus.Persisted);
+            await service.SendEvent(topic, new Event1PayloadDto(expectedKey, expectedValue));
         }
 
-        // Assert: Consume
-        using (var consumer = new ConsumerBuilder<string, string>(consumerConfig).Build())
+        // Assert
+        using (
+            var consumer = new ConsumerBuilder<string, Event1PayloadDto>(consumerConfig)
+                .SetValueDeserializer(new EventJsonSerializer<Event1PayloadDto>())
+                .Build()
+        )
         {
             consumer.Subscribe(topic);
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
@@ -46,7 +61,7 @@ public class EventsServiceShould(AppHostFixture appHostFixture)
 
             consumeResult.Should().NotBeNull();
             consumeResult.Message.Key.Should().Be(expectedKey);
-            consumeResult.Message.Value.Should().Be(expectedValue);
+            consumeResult.Message.Value.Should().BeEquivalentTo(new Event1PayloadDto(expectedKey, expectedValue));
 
             consumer.Close();
         }

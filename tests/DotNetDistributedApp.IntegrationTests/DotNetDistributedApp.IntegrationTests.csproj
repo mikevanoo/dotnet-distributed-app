@@ -27,6 +27,7 @@
     <Using Include="Xunit" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\src\DotNetDistributedApp.Api\DotNetDistributedApp.Api.csproj" />
     <ProjectReference Include="..\..\src\DotNetDistributedApp.AppHost\DotNetDistributedApp.AppHost.csproj" />
     <ProjectReference Include="..\..\src\DotNetDistributedApp.SpatialApi\DotNetDistributedApp.SpatialApi.csproj" />
   </ItemGroup>

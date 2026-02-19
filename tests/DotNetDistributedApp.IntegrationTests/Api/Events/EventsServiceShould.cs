@@ -11,33 +11,16 @@ namespace DotNetDistributedApp.IntegrationTests.Api.Events;
 public class EventsServiceShould(AppHostFixture appHostFixture)
 {
     [Fact]
-    public async Task SendEventToKakfa()
+    public async Task SendEvent()
     {
         // Arrange
         var ct = TestContext.Current.CancellationToken;
         var topic = Guid.NewGuid().ToString();
-
-        var bootstrapServers =
-            await appHostFixture.App.GetConnectionStringAsync("events", ct)
-            ?? throw new InvalidOperationException("Kafka connection string not found.");
-
-        var producerConfig = new ProducerConfig { BootstrapServers = bootstrapServers };
-        var consumerConfig = new ConsumerConfig
-        {
-            BootstrapServers = bootstrapServers,
-            GroupId = Guid.NewGuid().ToString(),
-            AutoOffsetReset = AutoOffsetReset.Earliest,
-        };
-
         var expectedKey = "user-789";
         var expectedValue = "{\"status\": \"apphost-verified\"}";
 
         // Act
-        using (
-            var producer = new ProducerBuilder<string, Event1PayloadDto>(producerConfig)
-                .SetValueSerializer(new EventJsonSerializer<Event1PayloadDto>())
-                .Build()
-        )
+        using (var producer = await appHostFixture.CreateEventProducer<string, Event1PayloadDto>(ct))
         {
             var service = new EventsService<Event1PayloadDto>(
                 producer,
@@ -49,11 +32,7 @@ public class EventsServiceShould(AppHostFixture appHostFixture)
         }
 
         // Assert
-        using (
-            var consumer = new ConsumerBuilder<string, Event1PayloadDto>(consumerConfig)
-                .SetValueDeserializer(new EventJsonSerializer<Event1PayloadDto>())
-                .Build()
-        )
+        using (var consumer = await appHostFixture.CreateEventConsumer<string, Event1PayloadDto>(ct))
         {
             consumer.Subscribe(topic);
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));

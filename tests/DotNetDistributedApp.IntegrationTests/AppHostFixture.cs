@@ -1,4 +1,6 @@
 ﻿using Aspire.Hosting;
+using Confluent.Kafka;
+using DotNetDistributedApp.Api.Common.Events;
 using DotNetDistributedApp.IntegrationTests;
 using Microsoft.Extensions.Logging;
 
@@ -8,7 +10,8 @@ namespace DotNetDistributedApp.IntegrationTests;
 
 public class AppHostFixture : IAsyncLifetime
 {
-    public static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(60);
+    private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(60);
+
     public DistributedApplication App { get; private set; } = null!;
 
     public async ValueTask InitializeAsync()
@@ -38,14 +41,46 @@ public class AppHostFixture : IAsyncLifetime
             .WaitAsync(AppHostFixture.DefaultTimeout, cancellationToken);
     }
 
-    public static CancellationToken CreateCancellationToken(TimeSpan? timeout = null)
-    {
-        return new CancellationTokenSource(timeout ?? DefaultTimeout).Token;
-    }
+    public static CancellationToken CreateCancellationToken(TimeSpan? timeout = null) =>
+        new CancellationTokenSource(timeout ?? DefaultTimeout).Token;
 
     public async ValueTask DisposeAsync()
     {
         await App.DisposeAsync();
         GC.SuppressFinalize(this);
     }
+
+    public async Task<IProducer<TKey, TValue>> CreateEventProducer<TKey, TValue>(CancellationToken cancellationToken)
+        where TValue : new()
+    {
+        var bootstrapServers = await GetKafkaConnectionString(cancellationToken);
+        var producerConfig = new ProducerConfig { BootstrapServers = bootstrapServers };
+        return new ProducerBuilder<TKey, TValue>(producerConfig)
+            .SetValueSerializer(new EventJsonSerializer<TValue>())
+            .Build();
+    }
+
+    public async Task<IConsumer<TKey, TValue>> CreateEventConsumer<TKey, TValue>(
+        string topic,
+        CancellationToken cancellationToken
+    )
+        where TValue : new()
+    {
+        var bootstrapServers = await GetKafkaConnectionString(cancellationToken);
+        var consumerConfig = new ConsumerConfig
+        {
+            BootstrapServers = bootstrapServers,
+            GroupId = Guid.NewGuid().ToString(),
+            AutoOffsetReset = AutoOffsetReset.Earliest,
+        };
+        var consumer = new ConsumerBuilder<TKey, TValue>(consumerConfig)
+            .SetValueDeserializer(new EventJsonSerializer<TValue>())
+            .Build();
+        consumer.Subscribe(topic);
+        return consumer;
+    }
+
+    private async Task<string> GetKafkaConnectionString(CancellationToken cancellationToken) =>
+        await App.GetConnectionStringAsync("events", cancellationToken)
+        ?? throw new InvalidOperationException("Kafka connection string not found.");
 }

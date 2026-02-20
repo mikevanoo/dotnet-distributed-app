@@ -19,7 +19,7 @@ try
     builder.Services.AddSerilog(config => config.ReadFrom.Configuration(builder.Configuration));
 
     builder.Services.AddSingleton<IMetricsService, MetricsService>();
-    builder.AddKafkaConsumer<string, Event1PayloadDto>(
+    builder.AddKafkaConsumer<string, SimpleEventPayloadDto>(
         "events",
         settings =>
         {
@@ -28,11 +28,11 @@ try
         },
         static consumerBuilder =>
         {
-            var messageSerializer = new EventJsonSerializer<Event1PayloadDto>();
+            var messageSerializer = new EventJsonSerializer<SimpleEventPayloadDto>();
             consumerBuilder.SetValueDeserializer(messageSerializer);
         }
     );
-    builder.Services.AddHostedService<EventsConsumer<Event1PayloadDto>>();
+    builder.Services.AddHostedService<EventsConsumer<SimpleEventPayloadDto>>();
 
     var app = builder.Build();
     await app.RunAsync();

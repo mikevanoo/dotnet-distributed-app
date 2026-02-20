@@ -70,15 +70,15 @@ public static class CoreWebApplicationBuilderExtensions
 
     public static WebApplicationBuilder AddEventServices(this WebApplicationBuilder builder)
     {
-        builder.AddKafkaProducer<string, Event1PayloadDto>(
+        builder.AddKafkaProducer<string, SimpleEventPayloadDto>(
             "events",
             static producerBuilder =>
             {
-                var messageSerializer = new EventJsonSerializer<Event1PayloadDto>();
+                var messageSerializer = new EventJsonSerializer<SimpleEventPayloadDto>();
                 producerBuilder.SetValueSerializer(messageSerializer);
             }
         );
-        builder.Services.AddScoped<IEventsService<Event1PayloadDto>, EventsService<Event1PayloadDto>>();
+        builder.Services.AddScoped<IEventsService<SimpleEventPayloadDto>, EventsService<SimpleEventPayloadDto>>();
 
         return builder;
     }

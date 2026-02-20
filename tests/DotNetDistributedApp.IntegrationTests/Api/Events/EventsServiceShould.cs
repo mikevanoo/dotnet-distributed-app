@@ -16,19 +16,19 @@ public class EventsServiceShould(AppHostFixture appHostFixture)
         var topic = Guid.NewGuid().ToString();
         var expectedKey = "user-789";
         var expectedValue = "{\"status\": \"all-good\"}";
-        using var producer = await appHostFixture.CreateEventProducer<string, Event1PayloadDto>(ct);
-        var service = new EventsService<Event1PayloadDto>(
+        using var producer = await appHostFixture.CreateEventProducer<string, SimpleEventPayloadDto>(ct);
+        var service = new EventsService<SimpleEventPayloadDto>(
             producer,
             new MetricsService(appHostFixture.App.Services.GetRequiredService<IMeterFactory>()),
-            new NullLogger<EventsService<Event1PayloadDto>>()
+            new NullLogger<EventsService<SimpleEventPayloadDto>>()
         );
 
-        await service.SendEvent(topic, new Event1PayloadDto(expectedKey, expectedValue));
+        await service.SendEvent(topic, new SimpleEventPayloadDto(expectedKey, expectedValue));
 
-        using var consumer = await appHostFixture.CreateEventConsumer<string, Event1PayloadDto>(topic, ct);
+        using var consumer = await appHostFixture.CreateEventConsumer<string, SimpleEventPayloadDto>(topic, ct);
         var consumeResult = consumer.Consume(ct);
         consumeResult.Message.Should().NotBeNull();
         consumeResult.Message.Key.Should().Be(expectedKey);
-        consumeResult.Message.Value.Should().BeEquivalentTo(new Event1PayloadDto(expectedKey, expectedValue));
+        consumeResult.Message.Value.Should().BeEquivalentTo(new SimpleEventPayloadDto(expectedKey, expectedValue));
     }
 }

@@ -80,6 +80,16 @@ public static class CoreWebApplicationBuilderExtensions
         );
         builder.Services.AddScoped<IEventsService<SimpleEventPayloadDto>, EventsService<SimpleEventPayloadDto>>();
 
+        builder.AddKafkaProducer<string, FailingEventPayloadDto>(
+            "events",
+            static producerBuilder =>
+            {
+                var messageSerializer = new EventJsonSerializer<FailingEventPayloadDto>();
+                producerBuilder.SetValueSerializer(messageSerializer);
+            }
+        );
+        builder.Services.AddScoped<IEventsService<FailingEventPayloadDto>, EventsService<FailingEventPayloadDto>>();
+
         return builder;
     }
 }

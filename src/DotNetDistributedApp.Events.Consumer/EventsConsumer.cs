@@ -32,6 +32,10 @@ public partial class EventsConsumer<T>(
                     var valueJson = JsonSerializer.Serialize(consumeResult.Message.Value);
                     LogConsumedMessage(eventName, valueJson);
                     break;
+                case "failing-event":
+                    metricsService.ConsumeEventSuccess(1, topic, eventName);
+                    LogConsumedMessage(eventName, string.Empty);
+                    break;
                 default:
                     metricsService.ConsumeEventUnrecognised(1, topic, eventName);
                     break;

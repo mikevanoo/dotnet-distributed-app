@@ -12,13 +12,18 @@ public static class EventsWebApplicationExtensions
         eventsGroup.MapPost(
             "/simple-event",
             async (
-                [FromBody] [Required] Event1Request body,
+                [FromBody] [Required] SimpleEventRequest body,
                 [FromServices] IEventsService<SimpleEventPayloadDto> eventsService
             ) =>
                 await eventsService.SendEvent(
                     Topics.Common,
                     new SimpleEventPayloadDto(Guid.NewGuid().ToString(), body.Value)
                 )
+        );
+        eventsGroup.MapPost(
+            "/failing-event",
+            async ([FromServices] IEventsService<FailingEventPayloadDto> eventsService) =>
+                await eventsService.SendEvent(Topics.Common, new FailingEventPayloadDto(Guid.NewGuid().ToString()))
         );
 
         return webApplication;

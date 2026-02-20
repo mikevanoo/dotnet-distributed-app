@@ -17,8 +17,8 @@ try
     var builder = Host.CreateApplicationBuilder(args);
     builder.AddServiceDefaults();
     builder.Services.AddSerilog(config => config.ReadFrom.Configuration(builder.Configuration));
-
     builder.Services.AddSingleton<IMetricsService, MetricsService>();
+
     builder.AddKafkaConsumer<string, SimpleEventPayloadDto>(
         "events",
         settings =>
@@ -33,6 +33,21 @@ try
         }
     );
     builder.Services.AddHostedService<EventsConsumer<SimpleEventPayloadDto>>();
+
+    builder.AddKafkaConsumer<string, FailingEventPayloadDto>(
+        "events",
+        settings =>
+        {
+            settings.Config.GroupId = "events-consumer";
+            // settings.Config.AutoOffsetReset = AutoOffsetReset.Earliest; // process all events, even old ones
+        },
+        static consumerBuilder =>
+        {
+            var messageSerializer = new EventJsonSerializer<FailingEventPayloadDto>();
+            consumerBuilder.SetValueDeserializer(messageSerializer);
+        }
+    );
+    builder.Services.AddHostedService<EventsConsumer<FailingEventPayloadDto>>();
 
     var app = builder.Build();
     await app.RunAsync();

@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 namespace DotNetDistributedApp.Events.Consumer;
 
 public partial class EventsConsumer<T>(
-    IConsumer<string, SimpleEventPayloadDto> eventConsumer,
+    IConsumer<string, T> eventConsumer,
     IMetricsService metricsService,
     ILogger<EventsConsumer<T>> logger
 ) : BackgroundService

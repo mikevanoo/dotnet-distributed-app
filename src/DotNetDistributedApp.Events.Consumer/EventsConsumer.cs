@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 namespace DotNetDistributedApp.Events.Consumer;
 
 public partial class EventsConsumer<T>(
-    IConsumer<string, Event1PayloadDto> eventConsumer,
+    IConsumer<string, SimpleEventPayloadDto> eventConsumer,
     IMetricsService metricsService,
     ILogger<EventsConsumer<T>> logger
 ) : BackgroundService
@@ -27,7 +27,7 @@ public partial class EventsConsumer<T>(
 
             switch (eventName)
             {
-                case "event1":
+                case "simple-event":
                     metricsService.ConsumeEventSuccess(1, topic, eventName);
                     var valueJson = JsonSerializer.Serialize(consumeResult.Message.Value);
                     LogConsumedMessage(eventName, valueJson);

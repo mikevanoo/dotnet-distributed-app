@@ -1,17 +1,10 @@
 ﻿namespace DotNetDistributedApp.Api.Common.Events;
 
-public abstract class BaseEventPayloadDto
+public abstract class BaseEventPayloadDto(string partitionKey)
 {
     public abstract string EventName { get; }
-    public string PartitionKey { get; set; }
-
-    protected BaseEventPayloadDto(string partitionKey)
-    {
-        PartitionKey = partitionKey;
-    }
+    public string PartitionKey { get; set; } = partitionKey;
 
     protected BaseEventPayloadDto()
-    {
-        PartitionKey = string.Empty;
-    }
+        : this(string.Empty) { }
 }

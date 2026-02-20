@@ -10,14 +10,14 @@ public static class EventsWebApplicationExtensions
     {
         var eventsGroup = webApplication.MapGroup("/events");
         eventsGroup.MapPost(
-            "/event1",
+            "/simple-event",
             async (
                 [FromBody] [Required] Event1Request body,
-                [FromServices] IEventsService<Event1PayloadDto> eventsService
+                [FromServices] IEventsService<SimpleEventPayloadDto> eventsService
             ) =>
                 await eventsService.SendEvent(
                     Topics.Common,
-                    new Event1PayloadDto(Guid.NewGuid().ToString(), body.Value)
+                    new SimpleEventPayloadDto(Guid.NewGuid().ToString(), body.Value)
                 )
         );
 

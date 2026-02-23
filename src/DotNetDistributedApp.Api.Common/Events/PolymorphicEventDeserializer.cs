@@ -7,12 +7,6 @@ public class PolymorphicEventDeserializer : IDeserializer<BaseEventPayloadDto>
 {
     private readonly JsonSerializerOptions _options = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
-    private readonly Dictionary<string, Type> _eventTypeMap = new()
-    {
-        ["simple-event"] = typeof(SimpleEventPayloadDto),
-        ["failing-event"] = typeof(FailingEventPayloadDto),
-    };
-
     public BaseEventPayloadDto Deserialize(ReadOnlySpan<byte> data, bool isNull, SerializationContext context)
     {
         if (isNull)
@@ -36,7 +30,7 @@ public class PolymorphicEventDeserializer : IDeserializer<BaseEventPayloadDto>
         }
 
         // Look up the concrete type
-        if (!_eventTypeMap.TryGetValue(eventName, out var concreteType))
+        if (!BaseEventPayloadDto.EventPayloadMap.TryGetValue(eventName, out var concreteType))
         {
             // Fallback: deserialize as base type for unknown events
             return JsonSerializer.Deserialize<BaseEventPayloadDto>(data, _options)

@@ -15,14 +15,8 @@ public partial class EventsConsumer(
     ILogger<EventsConsumer> logger
 ) : BackgroundService
 {
-    private readonly Dictionary<string, Type> _eventTypeMap = new()
-    {
-        ["simple-event"] = typeof(SimpleEventPayloadDto),
-        ["failing-event"] = typeof(FailingEventPayloadDto),
-    };
-
     private const int CommitBatchSize = 10;
-    private int _messageCount = 0;
+    private int _messageCount;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -78,7 +72,7 @@ public partial class EventsConsumer(
         CancellationToken cancellationToken
     )
     {
-        if (!_eventTypeMap.TryGetValue(eventName, out var eventType))
+        if (!BaseEventPayloadDto.EventPayloadMap.TryGetValue(eventName, out var eventType))
         {
             metricsService.ConsumeEventUnrecognised(1, topic, eventName);
             LogUnrecognisedEvent(eventName);

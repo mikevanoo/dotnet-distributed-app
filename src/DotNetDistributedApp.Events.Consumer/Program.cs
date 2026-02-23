@@ -1,5 +1,4 @@
 ﻿using System.Globalization;
-using Confluent.Kafka;
 using DotNetDistributedApp.Api.Common.Events;
 using DotNetDistributedApp.Api.Common.Metrics;
 using DotNetDistributedApp.Events.Consumer;
@@ -17,9 +16,9 @@ try
     var builder = Host.CreateApplicationBuilder(args);
     builder.AddServiceDefaults();
     builder.Services.AddSerilog(config => config.ReadFrom.Configuration(builder.Configuration));
-
     builder.Services.AddSingleton<IMetricsService, MetricsService>();
-    builder.AddKafkaConsumer<string, Event1PayloadDto>(
+
+    builder.AddKafkaConsumer<string, BaseEventPayloadDto>(
         "events",
         settings =>
         {
@@ -28,11 +27,13 @@ try
         },
         static consumerBuilder =>
         {
-            var messageSerializer = new EventJsonSerializer<Event1PayloadDto>();
-            consumerBuilder.SetValueDeserializer(messageSerializer);
+            var deserializer = new EventJsonSerializer<BaseEventPayloadDto>();
+            consumerBuilder.SetValueDeserializer(deserializer);
         }
     );
-    builder.Services.AddHostedService<EventsConsumer<Event1PayloadDto>>();
+    builder.Services.AddScoped<IEventHandler<SimpleEventPayloadDto>, SimpleEventHandler>();
+    builder.Services.AddScoped<IEventHandler<FailingEventPayloadDto>, FailingEventHandler>();
+    builder.Services.AddHostedService<EventsConsumer>();
 
     var app = builder.Build();
     await app.RunAsync();

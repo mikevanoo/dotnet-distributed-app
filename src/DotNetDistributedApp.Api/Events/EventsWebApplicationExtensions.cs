@@ -10,15 +10,20 @@ public static class EventsWebApplicationExtensions
     {
         var eventsGroup = webApplication.MapGroup("/events");
         eventsGroup.MapPost(
-            "/event1",
+            "/simple-event",
             async (
-                [FromBody] [Required] Event1Request body,
-                [FromServices] IEventsService<Event1PayloadDto> eventsService
+                [FromBody] [Required] SimpleEventRequest body,
+                [FromServices] IEventsService<SimpleEventPayloadDto> eventsService
             ) =>
                 await eventsService.SendEvent(
                     Topics.Common,
-                    new Event1PayloadDto(Guid.NewGuid().ToString(), body.Value)
+                    new SimpleEventPayloadDto(Guid.NewGuid().ToString(), body.Value)
                 )
+        );
+        eventsGroup.MapPost(
+            "/failing-event",
+            async ([FromServices] IEventsService<FailingEventPayloadDto> eventsService) =>
+                await eventsService.SendEvent(Topics.Common, new FailingEventPayloadDto(Guid.NewGuid().ToString()))
         );
 
         return webApplication;

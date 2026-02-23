@@ -33,7 +33,8 @@ try
     );
     builder.Services.AddScoped<IEventHandler<SimpleEventPayloadDto>, SimpleEventHandler>();
     builder.Services.AddScoped<IEventHandler<FailingEventPayloadDto>, FailingEventHandler>();
-    builder.Services.AddHostedService<EventsConsumer>();
+    builder.Services.AddSingleton<EventsConsumer>();
+    builder.Services.AddHostedService<EventsConsumerHostedService>();
 
     var app = builder.Build();
     await app.RunAsync();

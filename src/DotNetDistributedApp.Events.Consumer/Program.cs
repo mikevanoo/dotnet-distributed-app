@@ -19,7 +19,8 @@ try
     builder.Services.AddSerilog(config => config.ReadFrom.Configuration(builder.Configuration));
     builder.Services.AddSingleton<IMetricsService, MetricsService>();
 
-    builder.AddKafkaConsumer<string, SimpleEventPayloadDto>(
+    // Register single Kafka consumer for base event type
+    builder.AddKafkaConsumer<string, BaseEventPayloadDto>(
         "events",
         settings =>
         {
@@ -28,26 +29,17 @@ try
         },
         static consumerBuilder =>
         {
-            var messageSerializer = new EventJsonSerializer<SimpleEventPayloadDto>();
-            consumerBuilder.SetValueDeserializer(messageSerializer);
+            var deserializer = new PolymorphicEventDeserializer();
+            consumerBuilder.SetValueDeserializer(deserializer);
         }
     );
-    builder.Services.AddHostedService<EventsConsumer<SimpleEventPayloadDto>>();
 
-    builder.AddKafkaConsumer<string, FailingEventPayloadDto>(
-        "events",
-        settings =>
-        {
-            settings.Config.GroupId = "events-consumer";
-            // settings.Config.AutoOffsetReset = AutoOffsetReset.Earliest; // process all events, even old ones
-        },
-        static consumerBuilder =>
-        {
-            var messageSerializer = new EventJsonSerializer<FailingEventPayloadDto>();
-            consumerBuilder.SetValueDeserializer(messageSerializer);
-        }
-    );
-    builder.Services.AddHostedService<EventsConsumer<FailingEventPayloadDto>>();
+    // Register event handlers
+    builder.Services.AddScoped<IEventHandler<SimpleEventPayloadDto>, SimpleEventHandler>();
+    builder.Services.AddScoped<IEventHandler<FailingEventPayloadDto>, FailingEventHandler>();
+
+    // Register single hosted service
+    builder.Services.AddHostedService<EventsConsumer>();
 
     var app = builder.Build();
     await app.RunAsync();

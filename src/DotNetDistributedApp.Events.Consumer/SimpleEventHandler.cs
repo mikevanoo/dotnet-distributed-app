@@ -4,15 +4,14 @@ using Microsoft.Extensions.Logging;
 
 namespace DotNetDistributedApp.Events.Consumer;
 
-public partial class SimpleEventHandler(ILogger<SimpleEventHandler> logger)
-    : IEventHandler<SimpleEventPayloadDto>
+public partial class SimpleEventHandler(ILogger<SimpleEventHandler> logger) : IEventHandler<SimpleEventPayloadDto>
 {
     public Task HandleAsync(SimpleEventPayloadDto payload, CancellationToken cancellationToken)
     {
         var valueJson = JsonSerializer.Serialize(payload);
         LogHandlingSimpleEvent(valueJson);
 
-        // Add your business logic here
+        // Do something exciting here
 
         return Task.CompletedTask;
     }

@@ -44,7 +44,7 @@ public partial class EventsConsumer(
                 }
                 catch (ConsumeException ex)
                 {
-                    LogConsumeError(ex.Error.Reason);
+                    LogConsumeError(ex);
                 }
                 catch (OperationCanceledException)
                 {
@@ -53,7 +53,7 @@ public partial class EventsConsumer(
                 }
                 catch (Exception ex)
                 {
-                    LogProcessingError(ex.Message);
+                    LogProcessingError(ex);
                     // Consider implementing dead letter queue here
                 }
             }
@@ -113,11 +113,11 @@ public partial class EventsConsumer(
     [LoggerMessage(LogLevel.Error, "No handler found for event: {EventName} (Type: {EventType})")]
     private partial void LogNoHandlerFound(string eventName, string eventType);
 
-    [LoggerMessage(LogLevel.Error, "Error consuming message: {Error}")]
-    private partial void LogConsumeError(string error);
+    [LoggerMessage(LogLevel.Error, "Error consuming message")]
+    private partial void LogConsumeError(Exception ex);
 
-    [LoggerMessage(LogLevel.Error, "Error processing message: {Error}")]
-    private partial void LogProcessingError(string error);
+    [LoggerMessage(LogLevel.Error, "Error processing message")]
+    private partial void LogProcessingError(Exception ex);
 
     [LoggerMessage(LogLevel.Information, "Closing consumer")]
     private partial void LogClosingConsumer();

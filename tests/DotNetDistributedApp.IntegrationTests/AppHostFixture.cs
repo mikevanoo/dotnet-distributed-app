@@ -51,7 +51,7 @@ public class AppHostFixture : IAsyncLifetime
     }
 
     public async Task<IProducer<TKey, TValue>> CreateEventProducer<TKey, TValue>(CancellationToken cancellationToken)
-        where TValue : new()
+        where TValue : BaseEventPayloadDto
     {
         var bootstrapServers = await GetKafkaConnectionString(cancellationToken);
         var producerConfig = new ProducerConfig { BootstrapServers = bootstrapServers };
@@ -64,7 +64,7 @@ public class AppHostFixture : IAsyncLifetime
         string topic,
         CancellationToken cancellationToken
     )
-        where TValue : new()
+        where TValue : BaseEventPayloadDto
     {
         var bootstrapServers = await GetKafkaConnectionString(cancellationToken);
         var consumerConfig = new ConsumerConfig

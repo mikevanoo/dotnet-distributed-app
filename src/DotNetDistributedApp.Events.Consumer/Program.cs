@@ -27,7 +27,7 @@ try
         },
         static consumerBuilder =>
         {
-            var deserializer = new PolymorphicEventDeserializer();
+            var deserializer = new EventJsonSerializer<BaseEventPayloadDto>();
             consumerBuilder.SetValueDeserializer(deserializer);
         }
     );

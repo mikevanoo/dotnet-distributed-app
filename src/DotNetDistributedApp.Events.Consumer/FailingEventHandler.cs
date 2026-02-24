@@ -11,8 +11,6 @@ public partial class FailingEventHandler(ILogger<FailingEventHandler> logger) : 
 
         // Simulate failed event processing
         throw new ArgumentException("Simulated exception");
-
-        return Task.CompletedTask;
     }
 
     [LoggerMessage(LogLevel.Information, "Handling failing event: {EventName}")]

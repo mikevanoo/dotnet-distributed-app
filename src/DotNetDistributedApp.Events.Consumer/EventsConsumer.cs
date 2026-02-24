@@ -3,7 +3,6 @@ using Confluent.Kafka;
 using DotNetDistributedApp.Api.Common.Events;
 using DotNetDistributedApp.Api.Common.Metrics;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace DotNetDistributedApp.Events.Consumer;
@@ -13,12 +12,12 @@ public partial class EventsConsumer(
     IServiceProvider serviceProvider,
     IMetricsService metricsService,
     ILogger<EventsConsumer> logger
-) : BackgroundService
+)
 {
     private const int CommitBatchSize = 10;
     private int _messageCount;
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    public async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         LogSubscribingToTopic(Topics.Common);
         eventConsumer.Subscribe(Topics.Common);

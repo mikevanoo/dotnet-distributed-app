@@ -9,6 +9,7 @@ namespace DotNetDistributedApp.Events.Consumer;
 
 public partial class EventsConsumer(
     IConsumer<string, BaseEventPayloadDto> eventConsumer,
+    IProducer<string, BaseEventPayloadDto> eventProducer,
     IServiceProvider serviceProvider,
     IMetricsService metricsService,
     ILogger<EventsConsumer> logger

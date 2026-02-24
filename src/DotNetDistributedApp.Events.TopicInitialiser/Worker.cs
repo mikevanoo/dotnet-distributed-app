@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Confluent.Kafka;
 using Confluent.Kafka.Admin;
+using DotNetDistributedApp.Api.Common.Events;
 
 namespace DotNetDistributedApp.Events.TopicInitialiser;
 
@@ -52,9 +53,15 @@ public class Worker(IServiceProvider serviceProvider, IHostApplicationLifetime h
             {
                 new TopicSpecification
                 {
-                    Name = "common",
+                    Name = Topics.Common,
                     NumPartitions = 3,
                     ReplicationFactor = 1, // 1 is fine for local dev, use 3 for production
+                },
+                new TopicSpecification
+                {
+                    Name = Topics.OutOfOrder,
+                    NumPartitions = 3,
+                    ReplicationFactor = 1,
                 },
             };
 

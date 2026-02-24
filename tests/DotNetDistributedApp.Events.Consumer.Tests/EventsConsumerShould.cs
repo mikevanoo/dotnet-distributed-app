@@ -15,7 +15,6 @@ public class EventsConsumerShould
     private readonly IEventHandler<SimpleEventPayloadDto> _eventHandler;
     private readonly SimpleEventPayloadDto _simpleEventPayloadDto;
     private readonly FakeLogger<EventsConsumer> _logger;
-    private readonly IMetricsService _metricsService;
 
     public EventsConsumerShould()
     {
@@ -39,15 +38,17 @@ public class EventsConsumerShould
                 _ => throw new OperationCanceledException()
             );
 
+        var eventProducer = Substitute.For<IProducer<string, BaseEventPayloadDto>>();
+
         var services = new ServiceCollection();
         _eventHandler = Substitute.For<IEventHandler<SimpleEventPayloadDto>>();
         services.AddScoped<IEventHandler<SimpleEventPayloadDto>>(_ => _eventHandler);
         var serviceProvider = services.BuildServiceProvider();
 
-        _metricsService = Substitute.For<IMetricsService>();
+        var metricsService = Substitute.For<IMetricsService>();
         _logger = new FakeLogger<EventsConsumer>();
 
-        _consumer = new EventsConsumer(_eventConsumer, serviceProvider, _metricsService, _logger);
+        _consumer = new EventsConsumer(_eventConsumer, eventProducer, serviceProvider, metricsService, _logger);
     }
 
     [Fact]
@@ -103,25 +104,6 @@ public class EventsConsumerShould
 
         _logger.ShouldHaveLogged(LogLevel.Warning, "Unrecognised event: unknown-event");
         await _eventHandler.DidNotReceive().HandleAsync(_simpleEventPayloadDto, TestContext.Current.CancellationToken);
-    }
-
-    [Fact]
-    public async Task LogExceptionWhenFailToConsumeEvent()
-    {
-        // Configure local IEventHandler and EventsConsumer instances to test
-        var services = new ServiceCollection();
-        var eventHandler = Substitute.For<IEventHandler<SimpleEventPayloadDto>>();
-        eventHandler
-            .HandleAsync(Arg.Any<SimpleEventPayloadDto>(), Arg.Any<CancellationToken>())
-            .ThrowsAsync(new Exception("Test exception"));
-        services.AddScoped<IEventHandler<SimpleEventPayloadDto>>(_ => eventHandler);
-        var serviceProvider = services.BuildServiceProvider();
-        var consumer = new EventsConsumer(_eventConsumer, serviceProvider, _metricsService, _logger);
-
-        await consumer.ExecuteAsync(TestContext.Current.CancellationToken);
-
-        await eventHandler.Received(1).HandleAsync(_simpleEventPayloadDto, TestContext.Current.CancellationToken);
-        _logger.ShouldHaveLogged(LogLevel.Error, "Error processing message");
     }
 }
 

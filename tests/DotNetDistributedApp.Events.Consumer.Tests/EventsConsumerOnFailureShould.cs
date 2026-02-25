@@ -1,4 +1,5 @@
 ﻿using Confluent.Kafka;
+using DotNetDistributedApp.Api.Common;
 using DotNetDistributedApp.Api.Common.Events;
 using DotNetDistributedApp.Api.Common.Metrics;
 using Microsoft.Extensions.Logging;
@@ -15,6 +16,8 @@ public class EventsConsumerOnFailureShould
     private readonly IEventHandler<SimpleEventPayloadDto> _eventHandler;
     private readonly SimpleEventPayloadDto _simpleEventPayloadDto;
     private readonly FakeLogger<EventsConsumer> _logger;
+    private readonly IDateTimeProvider _dateTimeProvider;
+    private readonly DateTimeOffset _now = DateTimeOffset.UtcNow;
 
     public EventsConsumerOnFailureShould()
     {
@@ -50,8 +53,17 @@ public class EventsConsumerOnFailureShould
 
         var metricsService = Substitute.For<IMetricsService>();
         _logger = new FakeLogger<EventsConsumer>();
+        _dateTimeProvider = Substitute.For<IDateTimeProvider>();
+        _dateTimeProvider.UtcNow.Returns(_now);
 
-        _consumer = new EventsConsumer(eventConsumer, _eventsService, serviceProvider, metricsService, _logger);
+        _consumer = new EventsConsumer(
+            eventConsumer,
+            _eventsService,
+            serviceProvider,
+            metricsService,
+            _dateTimeProvider,
+            _logger
+        );
     }
 
     [Fact]
@@ -60,7 +72,10 @@ public class EventsConsumerOnFailureShould
         await _consumer.ExecuteAsync(TestContext.Current.CancellationToken);
 
         await _eventHandler.Received(1).HandleAsync(_simpleEventPayloadDto, TestContext.Current.CancellationToken);
-        _logger.ShouldHaveLogged(LogLevel.Error, "Error processing message");
+        _logger.ShouldHaveLogged(
+            LogLevel.Error,
+            $"Error processing message: {_simpleEventPayloadDto.EventName} (PartitionKey: {_simpleEventPayloadDto.PartitionKey})"
+        );
     }
 
     [Fact]
@@ -79,11 +94,12 @@ public class EventsConsumerOnFailureShould
                     && x.Value == _simpleEventPayloadDto.Value
                     && x.Retry.TargetTopic == Topics.Common
                     && x.Retry.FailedCount == 1
+                    && x.Retry.FirstFailureTimestamp == _now
                 )
             );
         _logger.ShouldHaveLogged(
             LogLevel.Information,
-            $"Sending event to out-of-order topic: {_simpleEventPayloadDto.EventName} (PartitionKey: {_simpleEventPayloadDto.PartitionKey})"
+            $"Sending event to out-of-order topic: {_simpleEventPayloadDto.EventName} (PartitionKey: {_simpleEventPayloadDto.PartitionKey}, FailedCount: 1)"
         );
     }
 }

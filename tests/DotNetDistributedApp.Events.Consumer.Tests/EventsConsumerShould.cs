@@ -1,4 +1,5 @@
 ﻿using Confluent.Kafka;
+using DotNetDistributedApp.Api.Common;
 using DotNetDistributedApp.Api.Common.Events;
 using DotNetDistributedApp.Api.Common.Metrics;
 using Microsoft.Extensions.Logging;
@@ -47,8 +48,16 @@ public class EventsConsumerShould
 
         var metricsService = Substitute.For<IMetricsService>();
         _logger = new FakeLogger<EventsConsumer>();
+        var dateTimeProvider = Substitute.For<IDateTimeProvider>();
 
-        _consumer = new EventsConsumer(_eventConsumer, eventsService, serviceProvider, metricsService, _logger);
+        _consumer = new EventsConsumer(
+            _eventConsumer,
+            eventsService,
+            serviceProvider,
+            metricsService,
+            dateTimeProvider,
+            _logger
+        );
     }
 
     [Fact]

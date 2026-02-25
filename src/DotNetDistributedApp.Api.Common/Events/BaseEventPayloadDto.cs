@@ -16,6 +16,8 @@ public abstract class BaseEventPayloadDto(string partitionKey)
     {
         public string? TargetTopic { get; set; }
         public int FailedCount { get; set; }
+        public DateTimeOffset? FirstFailureTimestamp { get; set; }
+        public DateTimeOffset? LastFailureTimestamp { get; set; }
     }
 
     protected BaseEventPayloadDto()

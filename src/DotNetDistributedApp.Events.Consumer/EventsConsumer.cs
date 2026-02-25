@@ -1,5 +1,6 @@
 using System.Globalization;
 using Confluent.Kafka;
+using DotNetDistributedApp.Api.Common;
 using DotNetDistributedApp.Api.Common.Events;
 using DotNetDistributedApp.Api.Common.Metrics;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,6 +13,7 @@ public partial class EventsConsumer(
     IEventsService<BaseEventPayloadDto> eventsService,
     IServiceProvider serviceProvider,
     IMetricsService metricsService,
+    IDateTimeProvider dateTimeProvider,
     ILogger<EventsConsumer> logger
 )
 {
@@ -118,8 +120,6 @@ public partial class EventsConsumer(
         CancellationToken cancellationToken
     )
     {
-        LogProcessingError(ex);
-
         const int FailureLimit = 3;
 
         var targetTopic = consumeResult.Topic;
@@ -129,11 +129,18 @@ public partial class EventsConsumer(
         var partitionKey = payload.PartitionKey;
         var payloadRetry = payload.Retry;
 
+        LogProcessingError(ex, eventName, partitionKey);
+
         payloadRetry.TargetTopic = targetTopic;
         payloadRetry.FailedCount++;
         if (payloadRetry.FailedCount <= FailureLimit)
         {
-            LogSendingToOutOfOrder(eventName, partitionKey);
+            LogSendingToOutOfOrder(eventName, partitionKey, payloadRetry.FailedCount);
+            if (payloadRetry.FailedCount == 1)
+            {
+                payloadRetry.FirstFailureTimestamp = dateTimeProvider.UtcNow;
+            }
+
             eventsService.SendEvent(Topics.OutOfOrder, payload);
         }
         else
@@ -158,14 +165,14 @@ public partial class EventsConsumer(
     [LoggerMessage(LogLevel.Error, "Error consuming message")]
     private partial void LogConsumeError(Exception ex);
 
-    [LoggerMessage(LogLevel.Error, "Error processing message")]
-    private partial void LogProcessingError(Exception ex);
+    [LoggerMessage(LogLevel.Error, "Error processing message: {EventName} (PartitionKey: {PartitionKey})")]
+    private partial void LogProcessingError(Exception ex, string eventName, string partitionKey);
 
     [LoggerMessage(
         LogLevel.Information,
-        "Sending event to out-of-order topic: {EventName} (PartitionKey: {PartitionKey})"
+        "Sending event to out-of-order topic: {EventName} (PartitionKey: {PartitionKey}, FailedCount: {FailedCount})"
     )]
-    private partial void LogSendingToOutOfOrder(string eventName, string partitionKey);
+    private partial void LogSendingToOutOfOrder(string eventName, string partitionKey, int failedCount);
 
     [LoggerMessage(LogLevel.Information, "Closing consumer")]
     private partial void LogClosingConsumer();

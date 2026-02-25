@@ -3,6 +3,7 @@ using Confluent.Kafka;
 
 namespace DotNetDistributedApp.Api.Common.Events;
 
+// TODO remove
 public class EventJsonSerializer<T> : ISerializer<T>, IDeserializer<T>
     where T : BaseEventPayloadDto
 {

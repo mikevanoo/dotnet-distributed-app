@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 
 namespace DotNetDistributedApp.Events.Consumer;
 
+// TODO repurpose?
 public partial class FailingEventHandler(ILogger<FailingEventHandler> logger) : IEventHandler<FailingEventPayloadDto>
 {
     public Task HandleAsync(FailingEventPayloadDto payload, CancellationToken cancellationToken)

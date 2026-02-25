@@ -1,12 +1,15 @@
 ﻿using System.Globalization;
-using DotNetDistributedApp.Api.Common;
 using DotNetDistributedApp.Api.Common.Events;
 using DotNetDistributedApp.Api.Common.Metrics;
 using DotNetDistributedApp.Events.Consumer;
 using DotNetDistributedApp.ServiceDefaults;
+using KafkaFlow;
+using KafkaFlow.Serializer;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
+using Common = DotNetDistributedApp.Api.Common;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console(formatProvider: CultureInfo.InvariantCulture)
@@ -19,37 +22,30 @@ try
     builder
         .Services.AddSerilog(config => config.ReadFrom.Configuration(builder.Configuration))
         .AddSingleton<IMetricsService, MetricsService>()
-        .AddSingleton<IDateTimeProvider, DateTimeProvider>();
-
-    builder.AddKafkaConsumer<string, BaseEventPayloadDto>(
-        "events",
-        settings =>
+        .AddSingleton<Common.IDateTimeProvider, Common.DateTimeProvider>()
+        .AddSingleton<IEventsService, EventsService>()
+        .AddKafkaFlowHostedService(kafka =>
         {
-            settings.Config.GroupId = "events-consumer";
-            // settings.Config.AutoOffsetReset = AutoOffsetReset.Earliest; // process all events, even old ones
-        },
-        static consumerBuilder =>
-        {
-            var deserializer = new EventJsonSerializer<BaseEventPayloadDto>();
-            consumerBuilder.SetValueDeserializer(deserializer);
-        }
-    );
-    builder
-        .Services.AddScoped<IEventHandler<SimpleEventPayloadDto>, SimpleEventHandler>()
-        .AddScoped<IEventHandler<FailingEventPayloadDto>, FailingEventHandler>();
-
-    builder.AddKafkaProducer<string, BaseEventPayloadDto>(
-        "events",
-        static producerBuilder =>
-        {
-            var messageSerializer = new EventJsonSerializer<BaseEventPayloadDto>();
-            producerBuilder.SetValueSerializer(messageSerializer);
-        }
-    );
-    builder.Services.AddScoped<IEventsService<BaseEventPayloadDto>, EventsService<BaseEventPayloadDto>>();
-
-    builder.Services.AddSingleton<EventsConsumer>();
-    builder.Services.AddHostedService<EventsConsumerHostedService>();
+            var kafkaConnectionString = builder.Configuration.GetConnectionString("events");
+            kafka.AddCluster(cluster =>
+                cluster
+                    .WithBrokers([kafkaConnectionString])
+                    .CreateTopicIfNotExists(Topics.Common, 1, 1)
+                    .AddConsumer(consumer =>
+                        consumer
+                            .Topic(Topics.Common)
+                            .WithGroupId("events-consumer")
+                            .WithBufferSize(5)
+                            .WithWorkersCount(3)
+                            .AddMiddlewares(middlewares =>
+                                middlewares
+                                    .AddDeserializer<JsonCoreDeserializer>()
+                                    .AddTypedHandlers(x => x.AddHandler<SimpleEventMessageHandler>())
+                                    .AddTypedHandlers(x => x.AddHandler<FailingEventMessageHandler>())
+                            )
+                    )
+            );
+        });
 
     var app = builder.Build();
     await app.RunAsync();

@@ -21,6 +21,7 @@
     <PackageVersion Include="EFCore.NamingConventions" Version="10.0.1" />
     <PackageVersion Include="FluentResults" Version="4.0.0" />
     <PackageVersion Include="KafkaFlow" Version="4.1.0" />
+    <PackageVersion Include="KafkaFlow.Extensions.Hosting" Version="4.1.0" />
     <PackageVersion Include="KafkaFlow.LogHandler.Microsoft" Version="4.1.0" />
     <PackageVersion Include="KafkaFlow.Microsoft.DependencyInjection" Version="4.1.0" />
     <PackageVersion Include="KafkaFlow.Serializer.JsonCore" Version="4.1.0" />

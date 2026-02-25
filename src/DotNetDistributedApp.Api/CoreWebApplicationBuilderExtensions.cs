@@ -10,7 +10,6 @@ using KafkaFlow;
 using KafkaFlow.Serializer;
 using Microsoft.Extensions.Caching.Hybrid;
 using Serilog;
-using Common = DotNetDistributedApp.Api.Common;
 
 namespace DotNetDistributedApp.Api;
 

@@ -1,5 +1,6 @@
 ﻿namespace DotNetDistributedApp.Api.Common;
 
+// TODO remove?
 public interface IDateTimeProvider
 {
     public DateTimeOffset UtcNow { get; }

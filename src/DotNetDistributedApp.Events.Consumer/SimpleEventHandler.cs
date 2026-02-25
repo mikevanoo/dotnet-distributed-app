@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 
 namespace DotNetDistributedApp.Events.Consumer;
 
+// TODO repurpose?
 public partial class SimpleEventHandler(ILogger<SimpleEventHandler> logger) : IEventHandler<SimpleEventPayloadDto>
 {
     public Task HandleAsync(SimpleEventPayloadDto payload, CancellationToken cancellationToken)

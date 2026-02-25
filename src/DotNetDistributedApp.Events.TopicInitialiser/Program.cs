@@ -8,3 +8,5 @@ builder
 
 var host = builder.Build();
 host.Run();
+
+// TODO remove

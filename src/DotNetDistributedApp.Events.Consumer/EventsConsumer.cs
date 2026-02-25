@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 
 namespace DotNetDistributedApp.Events.Consumer;
 
+// TODO remove
 public partial class EventsConsumer(
     IConsumer<string, BaseEventPayloadDto> eventConsumer,
     IEventsService<BaseEventPayloadDto> eventsService,

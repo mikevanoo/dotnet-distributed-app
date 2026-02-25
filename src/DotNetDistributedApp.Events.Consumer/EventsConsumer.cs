@@ -140,6 +140,7 @@ public partial class EventsConsumer(
             {
                 payloadRetry.FirstFailureTimestamp = dateTimeProvider.UtcNow;
             }
+            payloadRetry.LastFailureTimestamp = dateTimeProvider.UtcNow;
 
             eventsService.SendEvent(Topics.OutOfOrder, payload);
         }

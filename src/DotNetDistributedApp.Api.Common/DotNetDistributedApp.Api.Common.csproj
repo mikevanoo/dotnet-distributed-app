@@ -3,5 +3,6 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="Aspire.Confluent.Kafka" />
     <PackageReference Include="FluentResults" />
+    <PackageReference Include="KafkaFlow" />
   </ItemGroup>
 </Project>

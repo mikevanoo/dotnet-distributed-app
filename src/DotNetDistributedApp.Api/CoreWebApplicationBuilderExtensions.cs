@@ -1,15 +1,16 @@
 ﻿using System.Text.Json.Serialization;
 using DotNetDistributedApp.Api.Clients;
-using DotNetDistributedApp.Api.Common;
 using DotNetDistributedApp.Api.Common.Events;
 using DotNetDistributedApp.Api.Common.Metrics;
 using DotNetDistributedApp.Api.Data;
 using DotNetDistributedApp.Api.Data.Weather;
-using DotNetDistributedApp.Api.Events;
 using DotNetDistributedApp.Api.Weather;
 using DotNetDistributedApp.ServiceDefaults;
+using KafkaFlow;
+using KafkaFlow.Serializer;
 using Microsoft.Extensions.Caching.Hybrid;
 using Serilog;
+using Common = DotNetDistributedApp.Api.Common;
 
 namespace DotNetDistributedApp.Api;
 
@@ -41,7 +42,7 @@ public static class CoreWebApplicationBuilderExtensions
             .Services.AddApiDatabaseContext<WeatherDbContext>(builder.Configuration)
             .AddScoped<WeatherService>()
             .AddSingleton<IMetricsService, MetricsService>()
-            .AddSingleton<IDateTimeProvider, DateTimeProvider>();
+            .AddSingleton<Common.IDateTimeProvider, Common.DateTimeProvider>();
 
         return builder;
     }
@@ -72,24 +73,24 @@ public static class CoreWebApplicationBuilderExtensions
 
     public static WebApplicationBuilder AddEventServices(this WebApplicationBuilder builder)
     {
-        builder.ConfigureEventService<SimpleEventPayloadDto>().ConfigureEventService<FailingEventPayloadDto>();
+        var kafkaConnectionString = builder.Configuration.GetConnectionString("events");
 
-        return builder;
-    }
-
-    private static WebApplicationBuilder ConfigureEventService<T>(this WebApplicationBuilder builder)
-        where T : BaseEventPayloadDto
-    {
-        builder.AddKafkaProducer<string, T>(
-            "events",
-            static producerBuilder =>
-            {
-                var messageSerializer = new EventJsonSerializer<T>();
-                producerBuilder.SetValueSerializer(messageSerializer);
-            }
+        builder.Services.AddKafka(kafka =>
+            kafka
+                .UseMicrosoftLog()
+                .AddCluster(cluster =>
+                    cluster
+                        .WithBrokers([kafkaConnectionString])
+                        .CreateTopicIfNotExists(Topics.Common, 1, 1)
+                        .AddProducer<EventsService>(producer =>
+                            producer
+                                .DefaultTopic(Topics.Common)
+                                .AddMiddlewares(m => m.AddSerializer<JsonCoreSerializer>())
+                        )
+                )
         );
 
-        builder.Services.AddScoped<IEventsService<T>, EventsService<T>>();
+        builder.Services.AddScoped<IEventsService, EventsService>();
 
         return builder;
     }

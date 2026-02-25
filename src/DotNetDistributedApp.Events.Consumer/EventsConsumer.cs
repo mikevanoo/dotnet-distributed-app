@@ -27,10 +27,25 @@ public partial class EventsConsumer(
         {
             while (!stoppingToken.IsCancellationRequested)
             {
-                ConsumeResult<string, BaseEventPayloadDto>? consumeResult = null;
+                // consumption and processing is split so we can ensure that we have a message before we attempt to process it
+                ConsumeResult<string, BaseEventPayloadDto> consumeResult;
                 try
                 {
                     consumeResult = eventConsumer.Consume(stoppingToken);
+                }
+                catch (ConsumeException ex)
+                {
+                    LogConsumeError(ex);
+                    continue;
+                }
+                catch (OperationCanceledException)
+                {
+                    // Expected when cancellation is requested
+                    break;
+                }
+
+                try
+                {
                     var topic = consumeResult.Topic;
                     var eventName = consumeResult.Message.Value.EventName;
 
@@ -42,10 +57,6 @@ public partial class EventsConsumer(
                         eventConsumer.Commit(consumeResult);
                         _messageCount = 0;
                     }
-                }
-                catch (ConsumeException ex)
-                {
-                    LogConsumeError(ex);
                 }
                 catch (OperationCanceledException)
                 {
@@ -103,11 +114,33 @@ public partial class EventsConsumer(
 
     private void HandleProcessingError(
         Exception ex,
-        ConsumeResult<string, BaseEventPayloadDto>? consumeResult,
+        ConsumeResult<string, BaseEventPayloadDto> consumeResult,
         CancellationToken cancellationToken
     )
     {
         LogProcessingError(ex);
+
+        const int FailureLimit = 3;
+
+        var targetTopic = consumeResult.Topic;
+        var message = consumeResult.Message;
+        var payload = message.Value;
+        var eventName = payload.EventName;
+        var partitionKey = payload.PartitionKey;
+        var payloadRetry = payload.Retry;
+
+        payloadRetry.TargetTopic = targetTopic;
+        payloadRetry.FailedCount++;
+        if (payloadRetry.FailedCount <= FailureLimit)
+        {
+            LogSendingToOutOfOrder(eventName, partitionKey);
+            eventsService.SendEvent(Topics.OutOfOrder, payload);
+        }
+        else
+        {
+            // Log
+            // DLQ
+        }
     }
 
     [LoggerMessage(LogLevel.Information, "Subscribing to topic: {Topic}")]
@@ -127,6 +160,12 @@ public partial class EventsConsumer(
 
     [LoggerMessage(LogLevel.Error, "Error processing message")]
     private partial void LogProcessingError(Exception ex);
+
+    [LoggerMessage(
+        LogLevel.Information,
+        "Sending event to out-of-order topic: {EventName} (PartitionKey: {PartitionKey})"
+    )]
+    private partial void LogSendingToOutOfOrder(string eventName, string partitionKey);
 
     [LoggerMessage(LogLevel.Information, "Closing consumer")]
     private partial void LogClosingConsumer();

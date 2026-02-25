@@ -64,11 +64,26 @@ public class EventsConsumerOnFailureShould
     }
 
     [Fact]
-    public async Task ProduceEventToOutOfOrderTopic()
+    public async Task SendEventToOutOfOrderTopic()
     {
         await _consumer.ExecuteAsync(TestContext.Current.CancellationToken);
 
         await _eventHandler.Received(1).HandleAsync(_simpleEventPayloadDto, TestContext.Current.CancellationToken);
-        await _eventsService.Received(1).SendEvent(Topics.OutOfOrder, Arg.Any<BaseEventPayloadDto>());
+        await _eventsService
+            .Received(1)
+            .SendEvent(
+                Topics.OutOfOrder,
+                Arg.Is<SimpleEventPayloadDto>(x =>
+                    x.EventName == _simpleEventPayloadDto.EventName
+                    && x.PartitionKey == _simpleEventPayloadDto.PartitionKey
+                    && x.Value == _simpleEventPayloadDto.Value
+                    && x.Retry.TargetTopic == Topics.Common
+                    && x.Retry.FailedCount == 1
+                )
+            );
+        _logger.ShouldHaveLogged(
+            LogLevel.Information,
+            $"Sending event to out-of-order topic: {_simpleEventPayloadDto.EventName} (PartitionKey: {_simpleEventPayloadDto.PartitionKey})"
+        );
     }
 }

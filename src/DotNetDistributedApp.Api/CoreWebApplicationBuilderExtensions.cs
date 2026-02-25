@@ -1,5 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 using DotNetDistributedApp.Api.Clients;
+using DotNetDistributedApp.Api.Common;
 using DotNetDistributedApp.Api.Common.Events;
 using DotNetDistributedApp.Api.Common.Metrics;
 using DotNetDistributedApp.Api.Data;
@@ -39,7 +40,8 @@ public static class CoreWebApplicationBuilderExtensions
         builder
             .Services.AddApiDatabaseContext<WeatherDbContext>(builder.Configuration)
             .AddScoped<WeatherService>()
-            .AddSingleton<IMetricsService, MetricsService>();
+            .AddSingleton<IMetricsService, MetricsService>()
+            .AddSingleton<IDateTimeProvider, DateTimeProvider>();
 
         return builder;
     }

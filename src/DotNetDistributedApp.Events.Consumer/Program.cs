@@ -1,4 +1,5 @@
 ﻿using System.Globalization;
+using DotNetDistributedApp.Api.Common;
 using DotNetDistributedApp.Api.Common.Events;
 using DotNetDistributedApp.Api.Common.Metrics;
 using DotNetDistributedApp.Events.Consumer;
@@ -15,8 +16,10 @@ try
 {
     var builder = Host.CreateApplicationBuilder(args);
     builder.AddServiceDefaults();
-    builder.Services.AddSerilog(config => config.ReadFrom.Configuration(builder.Configuration));
-    builder.Services.AddSingleton<IMetricsService, MetricsService>();
+    builder
+        .Services.AddSerilog(config => config.ReadFrom.Configuration(builder.Configuration))
+        .AddSingleton<IMetricsService, MetricsService>()
+        .AddSingleton<IDateTimeProvider, DateTimeProvider>();
 
     builder.AddKafkaConsumer<string, BaseEventPayloadDto>(
         "events",
@@ -31,8 +34,20 @@ try
             consumerBuilder.SetValueDeserializer(deserializer);
         }
     );
-    builder.Services.AddScoped<IEventHandler<SimpleEventPayloadDto>, SimpleEventHandler>();
-    builder.Services.AddScoped<IEventHandler<FailingEventPayloadDto>, FailingEventHandler>();
+    builder
+        .Services.AddScoped<IEventHandler<SimpleEventPayloadDto>, SimpleEventHandler>()
+        .AddScoped<IEventHandler<FailingEventPayloadDto>, FailingEventHandler>();
+
+    builder.AddKafkaProducer<string, BaseEventPayloadDto>(
+        "events",
+        static producerBuilder =>
+        {
+            var messageSerializer = new EventJsonSerializer<BaseEventPayloadDto>();
+            producerBuilder.SetValueSerializer(messageSerializer);
+        }
+    );
+    builder.Services.AddScoped<IEventsService<BaseEventPayloadDto>, EventsService<BaseEventPayloadDto>>();
+
     builder.Services.AddSingleton<EventsConsumer>();
     builder.Services.AddHostedService<EventsConsumerHostedService>();
 

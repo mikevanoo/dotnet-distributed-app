@@ -2,7 +2,6 @@
 using AwesomeAssertions;
 using DotNetDistributedApp.Api.Common.Events;
 using DotNetDistributedApp.Api.Common.Metrics;
-using DotNetDistributedApp.Api.Events;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DotNetDistributedApp.IntegrationTests.Api.Events;

@@ -38,7 +38,7 @@ public class EventsConsumerShould
                 _ => throw new OperationCanceledException()
             );
 
-        var eventProducer = Substitute.For<IProducer<string, BaseEventPayloadDto>>();
+        var eventsService = Substitute.For<IEventsService<BaseEventPayloadDto>>();
 
         var services = new ServiceCollection();
         _eventHandler = Substitute.For<IEventHandler<SimpleEventPayloadDto>>();
@@ -48,7 +48,7 @@ public class EventsConsumerShould
         var metricsService = Substitute.For<IMetricsService>();
         _logger = new FakeLogger<EventsConsumer>();
 
-        _consumer = new EventsConsumer(_eventConsumer, eventProducer, serviceProvider, metricsService, _logger);
+        _consumer = new EventsConsumer(_eventConsumer, eventsService, serviceProvider, metricsService, _logger);
     }
 
     [Fact]

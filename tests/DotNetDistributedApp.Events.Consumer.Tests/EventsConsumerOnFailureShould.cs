@@ -11,7 +11,7 @@ namespace DotNetDistributedApp.Events.Consumer.Tests;
 public class EventsConsumerOnFailureShould
 {
     private readonly EventsConsumer _consumer;
-    private readonly IProducer<string, BaseEventPayloadDto> _eventProducer;
+    private readonly IEventsService<BaseEventPayloadDto> _eventsService;
     private readonly IEventHandler<SimpleEventPayloadDto> _eventHandler;
     private readonly SimpleEventPayloadDto _simpleEventPayloadDto;
     private readonly FakeLogger<EventsConsumer> _logger;
@@ -38,7 +38,7 @@ public class EventsConsumerOnFailureShould
                 _ => throw new OperationCanceledException()
             );
 
-        _eventProducer = Substitute.For<IProducer<string, BaseEventPayloadDto>>();
+        _eventsService = Substitute.For<IEventsService<BaseEventPayloadDto>>();
 
         var services = new ServiceCollection();
         _eventHandler = Substitute.For<IEventHandler<SimpleEventPayloadDto>>();
@@ -51,7 +51,7 @@ public class EventsConsumerOnFailureShould
         var metricsService = Substitute.For<IMetricsService>();
         _logger = new FakeLogger<EventsConsumer>();
 
-        _consumer = new EventsConsumer(eventConsumer, _eventProducer, serviceProvider, metricsService, _logger);
+        _consumer = new EventsConsumer(eventConsumer, _eventsService, serviceProvider, metricsService, _logger);
     }
 
     [Fact]
@@ -69,12 +69,6 @@ public class EventsConsumerOnFailureShould
         await _consumer.ExecuteAsync(TestContext.Current.CancellationToken);
 
         await _eventHandler.Received(1).HandleAsync(_simpleEventPayloadDto, TestContext.Current.CancellationToken);
-        await _eventProducer
-            .Received(1)
-            .ProduceAsync(
-                Topics.OutOfOrder,
-                Arg.Any<Message<string, BaseEventPayloadDto>>(),
-                TestContext.Current.CancellationToken
-            );
+        await _eventsService.Received(1).SendEvent(Topics.OutOfOrder, Arg.Any<BaseEventPayloadDto>());
     }
 }

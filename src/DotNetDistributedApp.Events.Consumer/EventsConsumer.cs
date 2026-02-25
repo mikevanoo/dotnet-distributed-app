@@ -9,7 +9,7 @@ namespace DotNetDistributedApp.Events.Consumer;
 
 public partial class EventsConsumer(
     IConsumer<string, BaseEventPayloadDto> eventConsumer,
-    IProducer<string, BaseEventPayloadDto> eventProducer,
+    IEventsService<BaseEventPayloadDto> eventsService,
     IServiceProvider serviceProvider,
     IMetricsService metricsService,
     ILogger<EventsConsumer> logger
@@ -27,9 +27,10 @@ public partial class EventsConsumer(
         {
             while (!stoppingToken.IsCancellationRequested)
             {
+                ConsumeResult<string, BaseEventPayloadDto>? consumeResult = null;
                 try
                 {
-                    var consumeResult = eventConsumer.Consume(stoppingToken);
+                    consumeResult = eventConsumer.Consume(stoppingToken);
                     var topic = consumeResult.Topic;
                     var eventName = consumeResult.Message.Value.EventName;
 
@@ -53,8 +54,7 @@ public partial class EventsConsumer(
                 }
                 catch (Exception ex)
                 {
-                    LogProcessingError(ex);
-                    // Consider implementing dead letter queue here
+                    HandleProcessingError(ex, consumeResult, stoppingToken);
                 }
             }
         }
@@ -99,6 +99,15 @@ public partial class EventsConsumer(
             metricsService.ConsumeEventSuccess(1, topic, eventName);
             LogConsumedMessage(eventName);
         }
+    }
+
+    private void HandleProcessingError(
+        Exception ex,
+        ConsumeResult<string, BaseEventPayloadDto>? consumeResult,
+        CancellationToken cancellationToken
+    )
+    {
+        LogProcessingError(ex);
     }
 
     [LoggerMessage(LogLevel.Information, "Subscribing to topic: {Topic}")]

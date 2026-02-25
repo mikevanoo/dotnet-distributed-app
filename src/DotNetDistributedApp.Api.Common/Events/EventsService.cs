@@ -1,8 +1,8 @@
 ﻿using Confluent.Kafka;
-using DotNetDistributedApp.Api.Common.Events;
 using DotNetDistributedApp.Api.Common.Metrics;
+using Microsoft.Extensions.Logging;
 
-namespace DotNetDistributedApp.Api.Events;
+namespace DotNetDistributedApp.Api.Common.Events;
 
 public partial class EventsService<T>(
     IProducer<string, T> producer,

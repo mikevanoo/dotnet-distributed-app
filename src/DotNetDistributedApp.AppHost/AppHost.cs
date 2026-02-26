@@ -41,16 +41,10 @@ events.WithKafkaUI(configureContainer =>
     configureContainer.WithExplicitStart();
 });
 
-var topicInitializer = builder
-    .AddProject<Projects.DotNetDistributedApp_Events_TopicInitialiser>("topic-initializer")
-    .WithParentRelationship(events)
-    .WithReference(events)
-    .WaitFor(events);
-
 var eventsConsumer = builder
     .AddProject<Projects.DotNetDistributedApp_Events_Consumer>("events-consumer")
     .WithReference(events)
-    .WaitForCompletion(topicInitializer);
+    .WaitFor(events);
 
 var api = builder
     .AddProject<Projects.DotNetDistributedApp_Api>("api")

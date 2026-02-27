@@ -4,6 +4,11 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Aspire.Confluent.Kafka" />
+    <PackageReference Include="KafkaFlow" />
+    <PackageReference Include="KafkaFlow.Extensions.Hosting" />
+    <PackageReference Include="KafkaFlow.LogHandler.Microsoft" />
+    <PackageReference Include="KafkaFlow.Microsoft.DependencyInjection" />
+    <PackageReference Include="KafkaFlow.Serializer.JsonCore" />
     <PackageReference Include="Serilog" />
     <PackageReference Include="Serilog.Extensions.Hosting" />
     <PackageReference Include="Serilog.Settings.Configuration" />

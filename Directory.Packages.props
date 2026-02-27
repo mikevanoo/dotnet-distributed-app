@@ -20,6 +20,11 @@
     <PackageVersion Include="DotSpatial.Projections" Version="4.0.656" />
     <PackageVersion Include="EFCore.NamingConventions" Version="10.0.1" />
     <PackageVersion Include="FluentResults" Version="4.0.0" />
+    <PackageVersion Include="KafkaFlow" Version="4.1.0" />
+    <PackageVersion Include="KafkaFlow.Extensions.Hosting" Version="4.1.0" />
+    <PackageVersion Include="KafkaFlow.LogHandler.Microsoft" Version="4.1.0" />
+    <PackageVersion Include="KafkaFlow.Microsoft.DependencyInjection" Version="4.1.0" />
+    <PackageVersion Include="KafkaFlow.Serializer.JsonCore" Version="4.1.0" />
     <PackageVersion Include="MartinCostello.Logging.XUnit.v3" Version="0.7.0" />
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.2" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.2" />

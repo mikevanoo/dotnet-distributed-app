@@ -6,13 +6,22 @@ namespace DotNetDistributedApp.Events.Consumer.Tests;
 
 public static class LoggerTestExtensions
 {
-    public static void ShouldHaveLogged<T>(
-        this FakeLogger<T> logger,
-        LogLevel expectedLogLevel,
-        string expectedMessage
-    ) =>
-        logger
-            .Collector.GetSnapshot()
+    public static void ShouldHaveLogged<T>(this FakeLogger<T> logger, LogLevel expectedLogLevel, string expectedMessage)
+    {
+        var snapshot = logger.Collector.GetSnapshot();
+        var containsEntry = snapshot.Any(x => x.Level == expectedLogLevel && x.Message == expectedMessage);
+        var actualLogs = string.Join(Environment.NewLine, snapshot.Select(x => $"[{x.Level}] {x.Message}"));
+
+        containsEntry
             .Should()
-            .Contain(x => x.Level == expectedLogLevel && x.Message == expectedMessage);
+            .BeTrue(
+                $"""
+                logger should contain this entry:
+                [{expectedLogLevel}] {expectedMessage}
+
+                but found:
+                {actualLogs}{Environment.NewLine}
+                """
+            );
+    }
 }

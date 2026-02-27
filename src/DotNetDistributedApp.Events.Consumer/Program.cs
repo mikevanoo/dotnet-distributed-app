@@ -3,6 +3,9 @@ using DotNetDistributedApp.Api.Common.Events;
 using DotNetDistributedApp.Api.Common.Metrics;
 using DotNetDistributedApp.Events.Consumer;
 using DotNetDistributedApp.ServiceDefaults;
+using KafkaFlow;
+using KafkaFlow.Serializer;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
@@ -15,26 +18,32 @@ try
 {
     var builder = Host.CreateApplicationBuilder(args);
     builder.AddServiceDefaults();
-    builder.Services.AddSerilog(config => config.ReadFrom.Configuration(builder.Configuration));
-    builder.Services.AddSingleton<IMetricsService, MetricsService>();
-
-    builder.AddKafkaConsumer<string, BaseEventPayloadDto>(
-        "events",
-        settings =>
+    builder
+        .Services.AddSerilog(config => config.ReadFrom.Configuration(builder.Configuration))
+        .AddSingleton<IMetricsService, MetricsService>()
+        .AddSingleton<IEventsService, EventsService>()
+        .AddKafkaFlowHostedService(kafka =>
         {
-            settings.Config.GroupId = "events-consumer";
-            // settings.Config.AutoOffsetReset = AutoOffsetReset.Earliest; // process all events, even old ones
-        },
-        static consumerBuilder =>
-        {
-            var deserializer = new EventJsonSerializer<BaseEventPayloadDto>();
-            consumerBuilder.SetValueDeserializer(deserializer);
-        }
-    );
-    builder.Services.AddScoped<IEventHandler<SimpleEventPayloadDto>, SimpleEventHandler>();
-    builder.Services.AddScoped<IEventHandler<FailingEventPayloadDto>, FailingEventHandler>();
-    builder.Services.AddSingleton<EventsConsumer>();
-    builder.Services.AddHostedService<EventsConsumerHostedService>();
+            var kafkaConnectionString = builder.Configuration.GetConnectionString("events");
+            kafka.AddCluster(cluster =>
+                cluster
+                    .WithBrokers([kafkaConnectionString])
+                    .CreateTopicIfNotExists(Topics.Common, 1, 1)
+                    .AddConsumer(consumer =>
+                        consumer
+                            .Topic(Topics.Common)
+                            .WithGroupId("events-consumer")
+                            .WithBufferSize(5)
+                            .WithWorkersCount(3)
+                            .AddMiddlewares(middlewares =>
+                                middlewares
+                                    .AddDeserializer<JsonCoreDeserializer>()
+                                    .AddTypedHandlers(x => x.AddHandler<SimpleEventMessageHandler>())
+                                    .AddTypedHandlers(x => x.AddHandler<FailingEventMessageHandler>())
+                            )
+                    )
+            );
+        });
 
     var app = builder.Build();
     await app.RunAsync();

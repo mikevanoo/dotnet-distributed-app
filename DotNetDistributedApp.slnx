@@ -18,7 +18,6 @@
         <Project Path="src\DotNetDistributedApp.Api\DotNetDistributedApp.Api.csproj" />
         <Project Path="src\DotNetDistributedApp.AppHost\DotNetDistributedApp.AppHost.csproj" />
         <Project Path="src\DotNetDistributedApp.Events.Consumer\DotNetDistributedApp.Events.Consumer.csproj" />
-        <Project Path="src\DotNetDistributedApp.Events.TopicInitialiser\DotNetDistributedApp.Events.TopicInitialiser.csproj" />
         <Project Path="src\DotNetDistributedApp.ServiceDefaults\DotNetDistributedApp.ServiceDefaults.csproj" />
         <Project Path="src\DotNetDistributedApp.SpatialApi\DotNetDistributedApp.SpatialApi.csproj" />
     </Folder>

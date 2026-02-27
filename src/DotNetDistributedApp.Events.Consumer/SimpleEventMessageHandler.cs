@@ -1,17 +1,17 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using DotNetDistributedApp.Api.Common.Events;
+using KafkaFlow;
 using Microsoft.Extensions.Logging;
 
 namespace DotNetDistributedApp.Events.Consumer;
 
-public partial class SimpleEventHandler(ILogger<SimpleEventHandler> logger) : IEventHandler<SimpleEventPayloadDto>
+public partial class SimpleEventMessageHandler(ILogger<SimpleEventMessageHandler> logger)
+    : IMessageHandler<SimpleEventPayloadDto>
 {
-    public Task HandleAsync(SimpleEventPayloadDto payload, CancellationToken cancellationToken)
+    public Task Handle(IMessageContext context, SimpleEventPayloadDto message)
     {
-        var valueJson = JsonSerializer.Serialize(payload);
+        var valueJson = JsonSerializer.Serialize(message);
         LogHandlingSimpleEvent(valueJson);
-
-        // Do something exciting here
 
         return Task.CompletedTask;
     }

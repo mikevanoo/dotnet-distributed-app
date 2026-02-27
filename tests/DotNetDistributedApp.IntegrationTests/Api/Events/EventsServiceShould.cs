@@ -1,8 +1,11 @@
 ﻿using System.Diagnostics.Metrics;
 using AwesomeAssertions;
+using AwesomeAssertions.Extensions;
 using DotNetDistributedApp.Api.Common.Events;
 using DotNetDistributedApp.Api.Common.Metrics;
+using KafkaFlow;
 using Microsoft.Extensions.Logging.Abstractions;
+using NSubstitute;
 
 namespace DotNetDistributedApp.IntegrationTests.Api.Events;
 
@@ -11,23 +14,32 @@ public class EventsServiceShould(AppHostFixture appHostFixture)
     [Fact]
     public async Task SendEvent()
     {
-        var ct = TestContext.Current.CancellationToken;
-        var topic = Guid.NewGuid().ToString();
-        var expectedKey = "user-789";
-        var expectedValue = "{\"status\": \"all-good\"}";
-        using var producer = await appHostFixture.CreateEventProducer<string, SimpleEventPayloadDto>(ct);
-        var service = new EventsService<SimpleEventPayloadDto>(
+        var expectedPartitionKey = Guid.NewGuid().ToString();
+        var expectedValue = "Hello World!";
+        var producer = appHostFixture.GetMessageProducer<EventsService>();
+        var service = new EventsService(
             producer,
             new MetricsService(appHostFixture.App.Services.GetRequiredService<IMeterFactory>()),
-            new NullLogger<EventsService<SimpleEventPayloadDto>>()
+            new NullLogger<EventsService>()
         );
 
-        await service.SendEvent(topic, new SimpleEventPayloadDto(expectedKey, expectedValue));
+        await service.SendEvent(Topics.Common, new TestMessage(expectedPartitionKey, expectedValue));
 
-        using var consumer = await appHostFixture.CreateEventConsumer<string, SimpleEventPayloadDto>(topic, ct);
-        var consumeResult = consumer.Consume(ct);
-        consumeResult.Message.Should().NotBeNull();
-        consumeResult.Message.Key.Should().Be(expectedKey);
-        consumeResult.Message.Value.Should().BeEquivalentTo(new SimpleEventPayloadDto(expectedKey, expectedValue));
+        var handler = appHostFixture.GetMessageHandler<TestMessage>();
+        await FluentActions
+            .Awaiting(() =>
+                handler
+                    .Received(1)
+                    .Handle(
+                        Arg.Any<IMessageContext>(),
+                        Arg.Is<TestMessage>(x =>
+                            x.EventName == "test-message"
+                            && x.PartitionKey == expectedPartitionKey
+                            && x.Text == expectedValue
+                        )
+                    )
+            )
+            .Should()
+            .NotThrowAfterAsync(5.Seconds(), 100.Milliseconds());
     }
 }

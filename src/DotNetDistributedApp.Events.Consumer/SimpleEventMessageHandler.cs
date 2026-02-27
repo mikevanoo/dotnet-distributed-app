@@ -1,19 +1,21 @@
-﻿using DotNetDistributedApp.Api.Common.Events;
+﻿using System.Text.Json;
+using DotNetDistributedApp.Api.Common.Events;
 using KafkaFlow;
+using Microsoft.Extensions.Logging;
 
 namespace DotNetDistributedApp.Events.Consumer;
 
-public class SimpleEventMessageHandler : IMessageHandler<SimpleEventPayloadDto>
+public partial class SimpleEventMessageHandler(ILogger<SimpleEventMessageHandler> logger)
+    : IMessageHandler<SimpleEventPayloadDto>
 {
     public Task Handle(IMessageContext context, SimpleEventPayloadDto message)
     {
-        Console.WriteLine(
-            "Partition: {0} | Offset: {1} | Message: {2}",
-            context.ConsumerContext.Partition,
-            context.ConsumerContext.Offset,
-            message.EventName
-        );
+        var valueJson = JsonSerializer.Serialize(message);
+        LogHandlingSimpleEvent(valueJson);
 
         return Task.CompletedTask;
     }
+
+    [LoggerMessage(LogLevel.Information, "Handling simple event: {Value}")]
+    private partial void LogHandlingSimpleEvent(string value);
 }

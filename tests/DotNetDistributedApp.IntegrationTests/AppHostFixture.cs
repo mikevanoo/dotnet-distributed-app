@@ -1,8 +1,11 @@
 ﻿using Aspire.Hosting;
-using Confluent.Kafka;
 using DotNetDistributedApp.Api.Common.Events;
 using DotNetDistributedApp.IntegrationTests;
+using DotNetDistributedApp.IntegrationTests.Api.Events;
+using KafkaFlow;
+using KafkaFlow.Serializer;
 using Microsoft.Extensions.Logging;
+using NSubstitute;
 
 [assembly: AssemblyFixture(typeof(AppHostFixture))]
 
@@ -13,6 +16,8 @@ public class AppHostFixture : IAsyncLifetime
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(60);
 
     public DistributedApplication App { get; private set; } = null!;
+    private ServiceProvider _kafkaServiceProvider = null!;
+    private IKafkaBus _kafkaBus = null!;
 
     public async ValueTask InitializeAsync()
     {
@@ -38,7 +43,9 @@ public class AppHostFixture : IAsyncLifetime
 
         await App
             .ResourceNotifications.WaitForResourceHealthyAsync("api", cancellationToken)
-            .WaitAsync(AppHostFixture.DefaultTimeout, cancellationToken);
+            .WaitAsync(DefaultTimeout, cancellationToken);
+
+        await ConfigureKafkaServices(cancellationToken);
     }
 
     public static CancellationToken CreateCancellationToken(TimeSpan? timeout = null) =>
@@ -46,41 +53,65 @@ public class AppHostFixture : IAsyncLifetime
 
     public async ValueTask DisposeAsync()
     {
+        await _kafkaBus.StopAsync();
+        await _kafkaServiceProvider.DisposeAsync();
         await App.DisposeAsync();
         GC.SuppressFinalize(this);
     }
 
-    public async Task<IProducer<TKey, TValue>> CreateEventProducer<TKey, TValue>(CancellationToken cancellationToken)
-        where TValue : BaseEventPayloadDto
+    private async ValueTask ConfigureKafkaServices(CancellationToken cancellationToken)
     {
-        var bootstrapServers = await GetKafkaConnectionString(cancellationToken);
-        var producerConfig = new ProducerConfig { BootstrapServers = bootstrapServers };
-        return new ProducerBuilder<TKey, TValue>(producerConfig)
-            .SetValueSerializer(new EventJsonSerializer<TValue>())
-            .Build();
+        // The real connection string is only known after the Kafka container has started.
+        var kafkaConnectionString = await App.GetConnectionStringAsync("events", cancellationToken);
+        var kafkaServices = new ServiceCollection();
+
+        kafkaServices
+            .AddLogging()
+            .AddSingleton(Substitute.For<IMessageHandler<TestMessage>>())
+            .AddKafka(kafka =>
+                kafka
+                    .UseMicrosoftLog()
+                    .AddCluster(cluster =>
+                        cluster
+                            .WithBrokers([kafkaConnectionString])
+                            .CreateTopicIfNotExists(Topics.Common, 1, 1)
+                            .AddProducer<EventsService>(producer =>
+                                producer
+                                    .DefaultTopic(Topics.Common)
+                                    .AddMiddlewares(m => m.AddSerializer<JsonCoreSerializer>())
+                            )
+                            .AddConsumer(consumer =>
+                                consumer
+                                    .Topic(Topics.Common)
+                                    .WithGroupId($"integration-tests-{Guid.NewGuid()}")
+                                    /*
+                                     * KafkaFlow's StartAsync launches the consumer in the background but returns before
+                                     * partition assignment completes. With the default latest offset reset, the consumer
+                                     * determines its starting position AFTER it first polls the broker. If SendEvent runs
+                                     * while partition assignment is still in progress, the message lands at offset N,
+                                     * and when the consumer finally polls for the first time it sets "start from latest" = N+1
+                                     * thus skipping the message entirely. Using earliest removes the race: the consumer
+                                     * always starts from offset 0, so it catches the message regardless of when it was
+                                     * produced relative to when the consumer subscribed.
+                                     */
+                                    .WithAutoOffsetReset(AutoOffsetReset.Earliest)
+                                    .WithBufferSize(5)
+                                    .WithWorkersCount(3)
+                                    .AddMiddlewares(middlewares =>
+                                        middlewares
+                                            .AddDeserializer<JsonCoreDeserializer>()
+                                            .AddTypedHandlers(x => x.AddHandler<DelegatingTestMessageHandler>())
+                                    )
+                            )
+                    )
+            );
+        _kafkaServiceProvider = kafkaServices.BuildServiceProvider();
+        _kafkaBus = _kafkaServiceProvider.CreateKafkaBus();
+        await _kafkaBus.StartAsync(cancellationToken);
     }
 
-    public async Task<IConsumer<TKey, TValue>> CreateEventConsumer<TKey, TValue>(
-        string topic,
-        CancellationToken cancellationToken
-    )
-        where TValue : BaseEventPayloadDto
-    {
-        var bootstrapServers = await GetKafkaConnectionString(cancellationToken);
-        var consumerConfig = new ConsumerConfig
-        {
-            BootstrapServers = bootstrapServers,
-            GroupId = Guid.NewGuid().ToString(),
-            AutoOffsetReset = AutoOffsetReset.Earliest,
-        };
-        var consumer = new ConsumerBuilder<TKey, TValue>(consumerConfig)
-            .SetValueDeserializer(new EventJsonSerializer<TValue>())
-            .Build();
-        consumer.Subscribe(topic);
-        return consumer;
-    }
+    public IMessageProducer<T> GetMessageProducer<T>() =>
+        _kafkaServiceProvider.GetRequiredService<IMessageProducer<T>>();
 
-    private async Task<string> GetKafkaConnectionString(CancellationToken cancellationToken) =>
-        await App.GetConnectionStringAsync("events", cancellationToken)
-        ?? throw new InvalidOperationException("Kafka connection string not found.");
+    public IMessageHandler<T> GetMessageHandler<T>() => _kafkaServiceProvider.GetRequiredService<IMessageHandler<T>>();
 }

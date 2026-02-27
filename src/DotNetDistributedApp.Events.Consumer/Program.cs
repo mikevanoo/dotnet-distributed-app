@@ -9,7 +9,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
-using Common = DotNetDistributedApp.Api.Common;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console(formatProvider: CultureInfo.InvariantCulture)
@@ -22,7 +21,6 @@ try
     builder
         .Services.AddSerilog(config => config.ReadFrom.Configuration(builder.Configuration))
         .AddSingleton<IMetricsService, MetricsService>()
-        .AddSingleton<Common.IDateTimeProvider, Common.DateTimeProvider>()
         .AddSingleton<IEventsService, EventsService>()
         .AddKafkaFlowHostedService(kafka =>
         {

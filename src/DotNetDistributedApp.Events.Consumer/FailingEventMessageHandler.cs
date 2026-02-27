@@ -1,9 +1,11 @@
 ﻿using DotNetDistributedApp.Api.Common.Events;
 using KafkaFlow;
+using Microsoft.Extensions.Logging;
 
 namespace DotNetDistributedApp.Events.Consumer;
 
-public class FailingEventMessageHandler : IMessageHandler<FailingEventPayloadDto>
+public partial class FailingEventMessageHandler(ILogger<FailingEventMessageHandler> logger)
+    : IMessageHandler<FailingEventPayloadDto>
 {
     public Task Handle(IMessageContext context, FailingEventPayloadDto message)
     {
@@ -14,7 +16,12 @@ public class FailingEventMessageHandler : IMessageHandler<FailingEventPayloadDto
             message.EventName
         );
 
+        LogHandlingFailingEvent(message.EventName);
+
         // Simulate failed event processing
         throw new ArgumentException("Simulated exception");
     }
+
+    [LoggerMessage(LogLevel.Information, "Handling failing event: {EventName}")]
+    private partial void LogHandlingFailingEvent(string eventName);
 }

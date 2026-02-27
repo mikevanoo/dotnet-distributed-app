@@ -40,8 +40,7 @@ public static class CoreWebApplicationBuilderExtensions
         builder
             .Services.AddApiDatabaseContext<WeatherDbContext>(builder.Configuration)
             .AddScoped<WeatherService>()
-            .AddSingleton<IMetricsService, MetricsService>()
-            .AddSingleton<Common.IDateTimeProvider, Common.DateTimeProvider>();
+            .AddSingleton<IMetricsService, MetricsService>();
 
         return builder;
     }

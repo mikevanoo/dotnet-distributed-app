@@ -9,19 +9,12 @@ public partial class FailingEventMessageHandler(ILogger<FailingEventMessageHandl
 {
     public Task Handle(IMessageContext context, FailingEventPayloadDto message)
     {
-        Console.WriteLine(
-            "Partition: {0} | Offset: {1} | Message: {2}",
-            context.ConsumerContext.Partition,
-            context.ConsumerContext.Offset,
-            message.EventName
-        );
-
-        LogHandlingFailingEvent(message.EventName);
+        LogHandlingFailingEvent(message.EventName, message.PartitionKey);
 
         // Simulate failed event processing
         throw new ArgumentException("Simulated exception");
     }
 
-    [LoggerMessage(LogLevel.Information, "Handling failing event: {EventName}")]
-    private partial void LogHandlingFailingEvent(string eventName);
+    [LoggerMessage(LogLevel.Information, "Handling failing event: {EventName} {PartitionKey}")]
+    private partial void LogHandlingFailingEvent(string eventName, string partitionKey);
 }

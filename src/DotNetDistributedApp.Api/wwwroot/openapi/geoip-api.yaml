@@ -1,0 +1,191 @@
+openapi: 3.0.3
+info:
+  title: GeoIP API
+  description: >
+    A JSON REST API for MaxMind GeoIP databases. Returns geolocation information
+    for a given IP address, including country, coordinates, continent, timezone,
+    and ASN data.
+  version: "1.0"
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+
+servers:
+  - url: http://localhost:8080
+    description: Local container
+
+paths:
+  /{ipAddress}:
+    get:
+      summary: Get geolocation for an IP address
+      operationId: getGeoIpByAddress
+      parameters:
+        - name: ipAddress
+          in: path
+          required: true
+          description: The IPv4 or IPv6 address to look up.
+          schema:
+            type: string
+          example: "8.8.8.8"
+      responses:
+        "200":
+          description: Geolocation information for the given IP address.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeoIpResponse"
+        "400":
+          description: The supplied IP address is invalid.
+        "404":
+          description: No geolocation data found for the given IP address.
+
+  /:
+    get:
+      summary: Get geolocation via request header
+      description: >
+        Alternative lookup method used by proxies (e.g. Nginx). The IP address
+        to resolve is supplied via the `X-Geoip-Address` request header.
+        Geolocation data is returned as response headers. The response body is
+        always empty and the status code is always 204.
+      operationId: getGeoIpByHeader
+      parameters:
+        - name: X-Geoip-Address
+          in: header
+          required: true
+          description: The IPv4 or IPv6 address to look up.
+          schema:
+            type: string
+          example: "8.8.8.8"
+      responses:
+        "204":
+          description: Geolocation information returned as response headers.
+          headers:
+            X-Geoip-Country:
+              schema:
+                type: string
+              example: "US"
+            X-Geoip-Continent:
+              schema:
+                type: string
+              example: "NA"
+            X-Geoip-Timezone:
+              schema:
+                type: string
+              example: "America/Chicago"
+            X-Geoip-Latitude:
+              schema:
+                type: string
+              example: "37.751"
+            X-Geoip-Longitude:
+              schema:
+                type: string
+              example: "-97.822"
+            X-Geoip-Accuracy-Radius:
+              schema:
+                type: integer
+              example: 1000
+            X-Geoip-Asn:
+              schema:
+                type: integer
+              example: 15169
+            X-Geoip-Asn-Organization:
+              schema:
+                type: string
+              example: "GOOGLE"
+            X-Geoip-Asn-Network:
+              schema:
+                type: string
+              example: "8.8.8.0/24"
+
+    post:
+      summary: Bulk geolocation lookup
+      description: Look up geolocation for up to 100 IP addresses in a single request.
+      operationId: getGeoIpBulk
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: string
+              maxItems: 100
+            example:
+              - "8.8.8.8"
+              - "1.1.1.1"
+      responses:
+        "200":
+          description: >
+            A JSON object keyed by the requested IP addresses, each containing
+            its geolocation data.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  $ref: "#/components/schemas/GeoIpResponse"
+              example:
+                "8.8.8.8":
+                  country: "US"
+                  continent: "NA"
+                  timezone: "America/Chicago"
+                  latitude: "37.751"
+                  longitude: "-97.822"
+                  accuracyRadius: 1000
+                  asn: 15169
+                  asnOrganization: "GOOGLE"
+                  asnNetwork: "8.8.8.0/24"
+        "400":
+          description: The request body is invalid or contains more than 100 addresses.
+
+components:
+  schemas:
+    GeoIpResponse:
+      type: object
+      required:
+        - country
+        - continent
+        - timezone
+        - latitude
+        - longitude
+        - accuracyRadius
+        - asn
+        - asnOrganization
+        - asnNetwork
+      properties:
+        country:
+          type: string
+          description: ISO 3166-1 alpha-2 country code.
+          example: "US"
+        continent:
+          type: string
+          description: Two-letter continent code.
+          example: "NA"
+        timezone:
+          type: string
+          description: IANA timezone name.
+          example: "America/Chicago"
+        latitude:
+          type: string
+          description: Latitude of the approximate location.
+          example: "37.751"
+        longitude:
+          type: string
+          description: Longitude of the approximate location.
+          example: "-97.822"
+        accuracyRadius:
+          type: integer
+          description: Radius in kilometres within which the IP address is likely located.
+          example: 1000
+        asn:
+          type: integer
+          description: Autonomous System Number.
+          example: 15169
+        asnOrganization:
+          type: string
+          description: Name of the ASN organisation.
+          example: "GOOGLE"
+        asnNetwork:
+          type: string
+          description: CIDR network block for the ASN.
+          example: "8.8.8.0/24"

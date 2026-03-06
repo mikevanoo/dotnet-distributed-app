@@ -1,4 +1,5 @@
-﻿using Scalar.AspNetCore;
+﻿using Microsoft.AspNetCore.StaticFiles;
+using Scalar.AspNetCore;
 
 namespace DotNetDistributedApp.Api;
 
@@ -9,10 +10,28 @@ public static class CoreWebApplicationExtensions
         webApplication.UseExceptionHandler();
         webApplication.UseOutputCache();
 
+        var contentTypeProvider = new FileExtensionContentTypeProvider
+        {
+            Mappings = { [".yaml"] = "application/yaml" },
+        };
+        webApplication.UseStaticFiles(new StaticFileOptions { ContentTypeProvider = contentTypeProvider });
+
         if (webApplication.Environment.IsDevelopment())
         {
             webApplication.MapOpenApi();
             webApplication.MapScalarApiReference();
+            // add the manually generated geoip OpenApi here because we can't add it to the geoip container itself
+            webApplication.MapScalarApiReference(
+                "/scalar/geoip-api",
+                options =>
+                {
+                    options.WithTitle("GeoIP API").WithOpenApiRoutePattern("/openapi/geoip-api.yaml");
+                    options.AddServer(
+                        webApplication.Configuration["services:geoip-api:http:0"]
+                            ?? throw new InvalidOperationException("Base url for 'geoip-api' not found.")
+                    );
+                }
+            );
         }
 
         return webApplication;

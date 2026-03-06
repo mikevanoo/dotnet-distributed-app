@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using DotNetDistributedApp.Api.Common;
 using DotNetDistributedApp.ServiceDefaults;
 using DotNetDistributedApp.SpatialApi.CoordinateConverter;
+using Scalar.AspNetCore;
 using Serilog;
 
 Log.Logger = new LoggerConfiguration()
@@ -34,10 +35,7 @@ try
     if (app.Environment.IsDevelopment())
     {
         app.MapOpenApi();
-        app.UseSwaggerUI(options =>
-        {
-            options.SwaggerEndpoint("/openapi/v1.json", "v1");
-        });
+        app.MapScalarApiReference();
     }
 
     var conversionGroup = app.MapGroup("/coordinate-converter");

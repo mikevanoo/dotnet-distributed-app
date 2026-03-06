@@ -1,4 +1,6 @@
-﻿namespace DotNetDistributedApp.Api;
+﻿using Scalar.AspNetCore;
+
+namespace DotNetDistributedApp.Api;
 
 public static class CoreWebApplicationExtensions
 {
@@ -10,10 +12,7 @@ public static class CoreWebApplicationExtensions
         if (webApplication.Environment.IsDevelopment())
         {
             webApplication.MapOpenApi();
-            webApplication.UseSwaggerUI(options =>
-            {
-                options.SwaggerEndpoint("/openapi/v1.json", "v1");
-            });
+            webApplication.MapScalarApiReference();
         }
 
         return webApplication;

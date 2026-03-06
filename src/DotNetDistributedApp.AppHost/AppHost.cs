@@ -32,7 +32,7 @@ var geoipEndpoint = geoip.GetEndpoint("http");
 var spatialApi = builder
     .AddProject<Projects.DotNetDistributedApp_SpatialApi>("spatial-api")
     .WithHttpHealthCheck("/health")
-    .WithUrl("/swagger", "Swagger UI");
+    .WithUrl("/scalar", "Scalar UI");
 
 var events = builder.AddKafka("events");
 events.WithKafkaUI(configureContainer =>
@@ -49,7 +49,7 @@ var eventsConsumer = builder
 var api = builder
     .AddProject<Projects.DotNetDistributedApp_Api>("api")
     .WithHttpHealthCheck("/health")
-    .WithUrl("/swagger", "Swagger UI")
+    .WithUrl("/scalar", "Scalar UI")
     .WithReference(apiDatabase)
     .WithReference(apiDatabaseMigrations)
     .WaitForCompletion(apiDatabaseMigrations)

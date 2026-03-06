@@ -1,6 +1,7 @@
-﻿namespace DotNetDistributedApp.Api.Common.Events;
+namespace DotNetDistributedApp.Api.Common.Events;
 
 public static class Topics
 {
     public const string Common = "common";
+    public const string CommonDlq = "common-dlq";
 }

@@ -7,11 +7,10 @@ namespace DotNetDistributedApp.Api.Data;
 
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddApiDatabaseContext<TContext>(
+    public static IServiceCollection AddApiDatabaseContext(
         this IServiceCollection services,
         ConfigurationManager configuration
-    )
-        where TContext : DbContext =>
+    ) =>
         services.AddDbContextPool<WeatherDbContext>(options =>
         {
             var connectionString =

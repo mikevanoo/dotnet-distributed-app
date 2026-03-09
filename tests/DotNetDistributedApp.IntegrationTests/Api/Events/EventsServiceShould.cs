@@ -1,4 +1,4 @@
-﻿using System.Diagnostics.Metrics;
+using System.Diagnostics.Metrics;
 using AwesomeAssertions;
 using AwesomeAssertions.Extensions;
 using DotNetDistributedApp.Api.Common.Events;

@@ -6,7 +6,11 @@ namespace DotNetDistributedApp.Api.Clients;
 
 public class CoordinateConverterClient(HttpClient httpClient)
 {
-    public async Task<Result<OsNationalGridReferenceDto>> ToOsNationalGridReference(double latitude, double longitude)
+    public async Task<Result<OsNationalGridReferenceDto>> ToOsNationalGridReference(
+        double latitude,
+        double longitude,
+        CancellationToken cancellationToken = default
+    )
     {
         var url = string.Format(
             CultureInfo.InvariantCulture,
@@ -14,7 +18,7 @@ public class CoordinateConverterClient(HttpClient httpClient)
             latitude,
             longitude
         );
-        var result = await httpClient.GetFromJsonAsync<OsNationalGridReferenceDto>(url);
+        var result = await httpClient.GetFromJsonAsync<OsNationalGridReferenceDto>(url, cancellationToken);
         if (result is null)
         {
             return Result.Fail(

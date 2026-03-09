@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using DotNetDistributedApp.Api.Clients;
 using DotNetDistributedApp.Api.Common.Errors;
@@ -17,16 +17,19 @@ public class WeatherService(
     IMetricsService metricsService
 )
 {
-    public async Task<Result<ResponseDto<List<WeatherStationDto>>>> GetWeatherStations()
+    public async Task<Result<ResponseDto<List<WeatherStationDto>>>> GetWeatherStations(
+        CancellationToken cancellationToken = default
+    )
     {
-        var stations = await dbContext.WeatherStations.OrderBy(x => x.DisplayName).ToListAsync();
+        var stations = await dbContext.WeatherStations.OrderBy(x => x.DisplayName).ToListAsync(cancellationToken);
 
         var conversionTasks = stations
             .Select(async station =>
             {
                 var gridRef = await coordinateConverterClient.ToOsNationalGridReference(
                     station.Latitude,
-                    station.Longitude
+                    station.Longitude,
+                    cancellationToken
                 );
                 if (gridRef.IsSuccess)
                 {
@@ -47,7 +50,7 @@ public class WeatherService(
         var result = (await Task.WhenAll(conversionTasks)).OfType<WeatherStationDto>().ToList();
 
         // The IP address should be taken from HttpContext, correctly resolved through x-forwarded headers.
-        var geoInfo = await geoIpClient.GetGeoInformation("8.8.8.8");
+        var geoInfo = await geoIpClient.GetGeoInformation("8.8.8.8", cancellationToken);
 
         return Result.Ok(ResponseDto.Create(result, geoInfo));
     }
@@ -59,11 +62,13 @@ public class WeatherService(
         "CA1862:Use the \'StringComparison\' method overloads to perform case-insensitive string comparisons"
     )]
     public async Task<Result<ResponseDto<List<WeatherStationHistoricDataDto>>>> GetWeatherStationHistoricData(
-        string stationKey
+        string stationKey,
+        CancellationToken cancellationToken = default
     )
     {
-        var station = await dbContext.WeatherStations.SingleOrDefaultAsync(x =>
-            x.Key.ToUpper() == stationKey.ToUpper()
+        var station = await dbContext.WeatherStations.SingleOrDefaultAsync(
+            x => x.Key.ToUpper() == stationKey.ToUpper(),
+            cancellationToken
         );
         if (station is null)
         {
@@ -76,7 +81,7 @@ public class WeatherService(
             .WeatherStationHistoricData.Where(x => x.WeatherStationId == station.Id)
             .OrderByDescending(x => x.Year)
             .ThenByDescending(x => x.Month)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
         stopWatch.Stop();
         metricsService.DatabaseQueryTime(stopWatch.ElapsedMilliseconds, "WeatherStationHistoricData");
 

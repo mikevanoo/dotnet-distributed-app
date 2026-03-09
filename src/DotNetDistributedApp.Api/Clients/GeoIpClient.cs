@@ -10,7 +10,10 @@ public partial class GeoIpClient(
     IMetricsService metricsService
 )
 {
-    public async Task<GeoIpResponseDto?> GetGeoInformation(string ipAddress)
+    public async Task<GeoIpResponseDto?> GetGeoInformation(
+        string ipAddress,
+        CancellationToken cancellationToken = default
+    )
     {
         var url = $"/{ipAddress}";
         var cacheKey = $"{nameof(GeoIpClient)}:{ipAddress}";
@@ -20,13 +23,13 @@ public partial class GeoIpClient(
         {
             var result = await cache.GetOrCreateAsync(
                 cacheKey,
-                async cancellationToken =>
+                async token =>
                 {
                     cacheMiss = true;
                     LogCacheMiss(cacheKey, ipAddress);
                     metricsService.CacheMiss(1, cacheKey);
 
-                    var response = await httpClient.GetAsync(url, cancellationToken);
+                    var response = await httpClient.GetAsync(url, token);
                     if (!response.IsSuccessStatusCode)
                     {
                         LogCouldNotGetGeoInformation(ipAddress);
@@ -37,8 +40,9 @@ public partial class GeoIpClient(
                         );
                     }
 
-                    return await response.Content.ReadFromJsonAsync<GeoIpResponseDto>(cancellationToken);
-                }
+                    return await response.Content.ReadFromJsonAsync<GeoIpResponseDto>(token);
+                },
+                cancellationToken: cancellationToken
             );
 
             if (!cacheMiss)

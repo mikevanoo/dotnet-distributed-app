@@ -25,6 +25,11 @@ public partial class RetryDeadLetterMiddleware(
                 await next(context);
                 return;
             }
+            catch (OperationCanceledException) when (context.ConsumerContext.WorkerStopped.IsCancellationRequested)
+            {
+                // propagate cancellation immediately, instead of being counted as a failed retry attempt or triggering DLQ routing
+                throw;
+            }
             catch (Exception ex)
             {
                 lastException = ex;

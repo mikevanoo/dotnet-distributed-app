@@ -1,4 +1,5 @@
 using AwesomeAssertions;
+using DotNetDistributedApp.ServiceDefaults;
 using DotNetDistributedApp.SpatialApi.CoordinateConverter;
 
 namespace DotNetDistributedApp.IntegrationTests.SpatialApi;
@@ -67,5 +68,5 @@ public class CoordinateConverterShould(AppHostFixture appHostFixture)
         response.Should().Be400BadRequest();
     }
 
-    private HttpClient CreateClient() => appHostFixture.App.CreateHttpClient("spatial-api");
+    private HttpClient CreateClient() => appHostFixture.App.CreateHttpClient(ResourceNames.SpatialApi);
 }

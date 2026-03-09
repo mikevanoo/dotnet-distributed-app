@@ -1,4 +1,5 @@
 using AwesomeAssertions;
+using DotNetDistributedApp.ServiceDefaults;
 using Microsoft.Extensions.Logging;
 
 namespace DotNetDistributedApp.IntegrationTests;
@@ -36,13 +37,13 @@ namespace DotNetDistributedApp.IntegrationTests;
 //         await using var app = await appHost.BuildAsync(cancellationToken).WaitAsync(DefaultTimeout, cancellationToken);
 //         await app.StartAsync(cancellationToken).WaitAsync(DefaultTimeout, cancellationToken);
 //         await app
-//             .ResourceNotifications.WaitForResourceHealthyAsync("api", cancellationToken)
+//             .ResourceNotifications.WaitForResourceHealthyAsync(ResourceNames.Api, cancellationToken)
 //             .WaitAsync(DefaultTimeout, cancellationToken);
 //
 //         // Act
-//         var httpClient = app.CreateHttpClient("spatial-api");
+//         var httpClient = app.CreateHttpClient(ResourceNames.SpatialApi);
 //         await app
-//             .ResourceNotifications.WaitForResourceHealthyAsync("spatial-api", cancellationToken)
+//             .ResourceNotifications.WaitForResourceHealthyAsync(ResourceNames.SpatialApi, cancellationToken)
 //             .WaitAsync(DefaultTimeout, cancellationToken);
 //
 //         var response = await httpClient.GetAsync(

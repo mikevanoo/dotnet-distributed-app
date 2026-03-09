@@ -1,7 +1,8 @@
-﻿using Aspire.Hosting;
+using Aspire.Hosting;
 using DotNetDistributedApp.Api.Common.Events;
 using DotNetDistributedApp.IntegrationTests;
 using DotNetDistributedApp.IntegrationTests.Api.Events;
+using DotNetDistributedApp.ServiceDefaults;
 using KafkaFlow;
 using KafkaFlow.Serializer;
 using Microsoft.Extensions.Logging;
@@ -42,7 +43,7 @@ public class AppHostFixture : IAsyncLifetime
         await App.StartAsync(cancellationToken).WaitAsync(DefaultTimeout, cancellationToken);
 
         await App
-            .ResourceNotifications.WaitForResourceHealthyAsync("api", cancellationToken)
+            .ResourceNotifications.WaitForResourceHealthyAsync(ResourceNames.Api, cancellationToken)
             .WaitAsync(DefaultTimeout, cancellationToken);
 
         await ConfigureKafkaServices(cancellationToken);
@@ -62,7 +63,7 @@ public class AppHostFixture : IAsyncLifetime
     private async ValueTask ConfigureKafkaServices(CancellationToken cancellationToken)
     {
         // The real connection string is only known after the Kafka container has started.
-        var kafkaConnectionString = await App.GetConnectionStringAsync("events", cancellationToken);
+        var kafkaConnectionString = await App.GetConnectionStringAsync(ResourceNames.Events, cancellationToken);
         var kafkaServices = new ServiceCollection();
 
         kafkaServices

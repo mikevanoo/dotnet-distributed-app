@@ -17,10 +17,10 @@ public static class Extensions
     private const string HealthEndpointPath = "/health";
     private const string AlivenessEndpointPath = "/alive";
 
-    public static TBuilder AddServiceDefaults<TBuilder>(this TBuilder builder)
+    public static TBuilder AddServiceDefaults<TBuilder>(this TBuilder builder, params string[] additionalMeters)
         where TBuilder : IHostApplicationBuilder
     {
-        builder.ConfigureOpenTelemetry();
+        builder.ConfigureOpenTelemetry(additionalMeters);
 
         builder.AddDefaultHealthChecks();
 
@@ -41,7 +41,7 @@ public static class Extensions
         return builder;
     }
 
-    public static TBuilder ConfigureOpenTelemetry<TBuilder>(this TBuilder builder)
+    public static TBuilder ConfigureOpenTelemetry<TBuilder>(this TBuilder builder, params string[] additionalMeters)
         where TBuilder : IHostApplicationBuilder
     {
         builder.Logging.AddOpenTelemetry(logging =>
@@ -58,8 +58,12 @@ public static class Extensions
                     .AddRuntimeInstrumentation()
                     .AddAspNetCoreInstrumentation()
                     .AddHttpClientInstrumentation()
-                    .AddNpgsqlInstrumentation()
-                    .AddMeter("DotNetDistributedApp.Api");
+                    .AddNpgsqlInstrumentation();
+
+                foreach (var meter in additionalMeters)
+                {
+                    metrics.AddMeter(meter);
+                }
             })
             .WithTracing(tracing =>
             {

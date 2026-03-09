@@ -17,7 +17,7 @@ Log.Logger = new LoggerConfiguration()
 try
 {
     var builder = Host.CreateApplicationBuilder(args);
-    builder.AddServiceDefaults();
+    builder.AddServiceDefaults(MetricsService.MeterName);
     builder
         .Services.AddSerilog(config => config.ReadFrom.Configuration(builder.Configuration))
         .AddSingleton<IMetricsService, MetricsService>()
@@ -25,7 +25,7 @@ try
         .Configure<RetryDeadLetterOptions>(builder.Configuration.GetSection("RetryDeadLetter"))
         .AddKafkaFlowHostedService(kafka =>
         {
-            var kafkaConnectionString = builder.Configuration.GetConnectionString("events");
+            var kafkaConnectionString = builder.Configuration.GetConnectionString(ResourceNames.Events);
             kafka.AddCluster(cluster =>
                 cluster
                     .WithBrokers([kafkaConnectionString])
@@ -39,7 +39,7 @@ try
                     .AddConsumer(consumer =>
                         consumer
                             .Topic(Topics.Common)
-                            .WithGroupId("events-consumer")
+                            .WithGroupId(ResourceNames.EventsConsumer)
                             .WithBufferSize(5)
                             .WithWorkersCount(3)
                             .AddMiddlewares(middlewares =>

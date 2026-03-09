@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.AspNetCore.StaticFiles;
 using Scalar.AspNetCore;
 
 namespace DotNetDistributedApp.Api;
@@ -10,10 +10,9 @@ public static class CoreWebApplicationExtensions
         webApplication.UseExceptionHandler();
         webApplication.UseOutputCache();
 
-        var contentTypeProvider = new FileExtensionContentTypeProvider
-        {
-            Mappings = { [".yaml"] = "application/yaml" },
-        };
+        // ReSharper disable once UseObjectOrCollectionInitializer - using this would wipe out the default mappings.
+        var contentTypeProvider = new FileExtensionContentTypeProvider();
+        contentTypeProvider.Mappings[".yaml"] = "application/yaml";
         webApplication.UseStaticFiles(new StaticFileOptions { ContentTypeProvider = contentTypeProvider });
 
         if (webApplication.Environment.IsDevelopment())

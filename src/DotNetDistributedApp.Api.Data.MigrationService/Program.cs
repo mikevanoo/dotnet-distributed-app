@@ -8,7 +8,10 @@ builder
     .AddOpenTelemetry()
     .WithTracing(tracing => tracing.AddSource(Worker.ActivitySourceName));
 
-builder.Services.AddApiDatabaseContext<WeatherDbContext>(builder.Configuration);
+builder.Services.AddApiDatabaseContext(
+    builder.Configuration,
+    commandTimeoutSeconds: (int)TimeSpan.FromMinutes(5).TotalSeconds
+);
 
 var host = builder.Build();
 host.Run();

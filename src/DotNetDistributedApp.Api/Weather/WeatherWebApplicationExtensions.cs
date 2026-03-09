@@ -1,4 +1,4 @@
-﻿using DotNetDistributedApp.Api.Common;
+using DotNetDistributedApp.Api.Common;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DotNetDistributedApp.Api.Weather;
@@ -10,14 +10,14 @@ public static class WeatherWebApplicationExtensions
         var weatherGroup = webApplication.MapGroup("/weather");
         weatherGroup.MapGet(
             "/stations",
-            async ([FromServices] WeatherService weatherService) =>
-                (await weatherService.GetWeatherStations()).ToApiResponse()
+            async ([FromServices] WeatherService weatherService, CancellationToken cancellationToken) =>
+                (await weatherService.GetWeatherStations(cancellationToken)).ToApiResponse()
         );
         weatherGroup
             .MapGet(
                 "/stations/{stationKey}/historic-data",
-                async ([FromServices] WeatherService weatherService, string stationKey) =>
-                    (await weatherService.GetWeatherStationHistoricData(stationKey)).ToApiResponse()
+                async ([FromServices] WeatherService weatherService, string stationKey, CancellationToken cancellationToken) =>
+                    (await weatherService.GetWeatherStationHistoricData(stationKey, cancellationToken)).ToApiResponse()
             )
             .CacheOutput(Constants.CachePolicy.WeatherStationHistoricData);
 

@@ -1,10 +1,17 @@
-﻿namespace DotNetDistributedApp.Api.Clients;
+using System.Text.Json.Serialization;
+
+namespace DotNetDistributedApp.Api.Clients;
 
 public class GeoIpResponseDto
 {
     public required string Country { get; set; }
-    public required string Latitude { get; set; }
-    public required string Longitude { get; set; }
+
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+    public required double Latitude { get; set; }
+
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+    public required double Longitude { get; set; }
+
     public required string Continent { get; set; }
     public required string Timezone { get; set; }
     public int AccuracyRadius { get; set; }

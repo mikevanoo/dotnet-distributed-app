@@ -1,10 +1,10 @@
 using System.Globalization;
-using DotNetDistributedApp.Api.Common.Errors;
+using System.Net;
 using FluentResults;
 
 namespace DotNetDistributedApp.Api.Clients;
 
-public class CoordinateConverterClient(HttpClient httpClient)
+public partial class CoordinateConverterClient(HttpClient httpClient, ILogger<CoordinateConverterClient> logger)
 {
     public async Task<Result<OsNationalGridReferenceDto>> ToOsNationalGridReference(
         double latitude,
@@ -18,16 +18,36 @@ public class CoordinateConverterClient(HttpClient httpClient)
             latitude,
             longitude
         );
-        var result = await httpClient.GetFromJsonAsync<OsNationalGridReferenceDto>(url, cancellationToken);
-        if (result is null)
+
+        try
         {
+            var result = await httpClient.GetFromJsonAsync<OsNationalGridReferenceDto>(url, cancellationToken);
+            if (result is null)
+            {
+                return Result.Fail(
+                    $"Coordinate conversion returned null for latitude={latitude}, longitude={longitude}"
+                );
+            }
+
+            return Result.Ok(result);
+        }
+        catch (HttpRequestException ex)
+        {
+            LogFailedToConvertCoordinates(ex, latitude, longitude, ex.StatusCode);
             return Result.Fail(
-                new NotFoundError(
-                    $"Could not convert latitude={latitude} longitude={longitude} to OS National Grid Reference"
-                )
+                $"Coordinate conversion failed for latitude={latitude}, longitude={longitude}: {ex.Message}"
             );
         }
-
-        return Result.Ok(result);
     }
+
+    [LoggerMessage(
+        LogLevel.Warning,
+        "Failed to convert coordinates (latitude={Latitude}, longitude={Longitude}): {StatusCode}"
+    )]
+    private partial void LogFailedToConvertCoordinates(
+        Exception ex,
+        double latitude,
+        double longitude,
+        HttpStatusCode? statusCode
+    );
 }

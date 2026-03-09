@@ -30,11 +30,11 @@ public static class CoreWebApplicationBuilderExtensions
 
         builder.Services.AddHttpClient<CoordinateConverterClient>(client =>
         {
-            client.BaseAddress = new("https://spatial-api");
+            client.BaseAddress = new($"https://{ResourceNames.SpatialApi}");
         });
         builder.Services.AddHttpClient<GeoIpClient>(client =>
         {
-            client.BaseAddress = new("http://geoip-api");
+            client.BaseAddress = new($"http://{ResourceNames.GeoIpApi}");
         });
 
         builder
@@ -47,8 +47,8 @@ public static class CoreWebApplicationBuilderExtensions
 
     public static WebApplicationBuilder AddCachingServices(this WebApplicationBuilder builder)
     {
-        builder.AddRedisDistributedCache(connectionName: "cache");
-        builder.AddRedisOutputCache(connectionName: "cache");
+        builder.AddRedisDistributedCache(connectionName: ResourceNames.Cache);
+        builder.AddRedisOutputCache(connectionName: ResourceNames.Cache);
         builder
             .Services.AddOutputCache(options =>
             {
@@ -71,7 +71,7 @@ public static class CoreWebApplicationBuilderExtensions
 
     public static WebApplicationBuilder AddEventServices(this WebApplicationBuilder builder)
     {
-        var kafkaConnectionString = builder.Configuration.GetConnectionString("events");
+        var kafkaConnectionString = builder.Configuration.GetConnectionString(ResourceNames.Events);
 
         builder.Services.AddKafka(kafka =>
             kafka

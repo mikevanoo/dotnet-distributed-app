@@ -25,7 +25,7 @@ try
         .Configure<RetryDeadLetterOptions>(builder.Configuration.GetSection("RetryDeadLetter"))
         .AddKafkaFlowHostedService(kafka =>
         {
-            var kafkaConnectionString = builder.Configuration.GetConnectionString("events");
+            var kafkaConnectionString = builder.Configuration.GetConnectionString(ResourceNames.Events);
             kafka.AddCluster(cluster =>
                 cluster
                     .WithBrokers([kafkaConnectionString])
@@ -39,7 +39,7 @@ try
                     .AddConsumer(consumer =>
                         consumer
                             .Topic(Topics.Common)
-                            .WithGroupId("events-consumer")
+                            .WithGroupId(ResourceNames.EventsConsumer)
                             .WithBufferSize(5)
                             .WithWorkersCount(3)
                             .AddMiddlewares(middlewares =>

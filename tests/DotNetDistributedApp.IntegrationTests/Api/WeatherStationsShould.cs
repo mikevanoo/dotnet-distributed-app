@@ -1,4 +1,5 @@
 using AwesomeAssertions;
+using DotNetDistributedApp.ServiceDefaults;
 
 namespace DotNetDistributedApp.IntegrationTests.Api;
 
@@ -7,7 +8,7 @@ public class WeatherStationsShould(AppHostFixture appHostFixture)
     [Fact]
     public async Task GetWeatherStationsReturn200OkAndExpectedNumberOfStations()
     {
-        var httpClient = appHostFixture.App.CreateHttpClient("api");
+        var httpClient = appHostFixture.App.CreateHttpClient(ResourceNames.Api);
 
         var response = await httpClient.GetAsync("/weather/stations", AppHostFixture.CreateCancellationToken());
 
@@ -20,7 +21,7 @@ public class WeatherStationsShould(AppHostFixture appHostFixture)
     [Fact]
     public async Task GetWeatherStationsReturn200OkAndExpectedGeoInformation()
     {
-        var httpClient = appHostFixture.App.CreateHttpClient("api");
+        var httpClient = appHostFixture.App.CreateHttpClient(ResourceNames.Api);
 
         var response = await httpClient.GetAsync("/weather/stations", AppHostFixture.CreateCancellationToken());
 
@@ -37,7 +38,7 @@ public class WeatherStationsShould(AppHostFixture appHostFixture)
     [Fact]
     public async Task GetHistoricDataReturns404NotFoundForUnknownStation()
     {
-        var httpClient = appHostFixture.App.CreateHttpClient("api");
+        var httpClient = appHostFixture.App.CreateHttpClient(ResourceNames.Api);
 
         var response = await httpClient.GetAsync(
             "/weather/stations/unknown-station/historic-data",
@@ -50,7 +51,7 @@ public class WeatherStationsShould(AppHostFixture appHostFixture)
     [Fact]
     public async Task GetHistoricDataReturns200OkAndDataForKnownStation()
     {
-        var httpClient = appHostFixture.App.CreateHttpClient("api");
+        var httpClient = appHostFixture.App.CreateHttpClient(ResourceNames.Api);
 
         var response = await httpClient.GetAsync(
             "/weather/stations/heathrow/historic-data",

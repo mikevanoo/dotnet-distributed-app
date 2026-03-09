@@ -1,22 +1,23 @@
 using DotNetDistributedApp.AppHost;
+using DotNetDistributedApp.ServiceDefaults;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-var apiDatabaseServer = builder.AddPostgres("api-database-server").WithDataVolume(isReadOnly: false);
+var apiDatabaseServer = builder.AddPostgres(ResourceNames.ApiDatabaseServer).WithDataVolume(isReadOnly: false);
 apiDatabaseServer.WithPgAdmin(configureContainer =>
 {
     configureContainer.WithExplicitStart();
     configureContainer.WithParentRelationship(apiDatabaseServer);
 });
-var apiDatabase = apiDatabaseServer.AddDatabase("api-database");
+var apiDatabase = apiDatabaseServer.AddDatabase(ResourceNames.ApiDatabase);
 
 var apiDatabaseMigrations = builder
-    .AddProject<Projects.DotNetDistributedApp_Api_Data_MigrationService>("api-database-migrations")
+    .AddProject<Projects.DotNetDistributedApp_Api_Data_MigrationService>(ResourceNames.ApiDatabaseMigrations)
     .WithReference(apiDatabase)
     .WithParentRelationship(apiDatabase)
     .WaitFor(apiDatabase);
 
-var cache = builder.AddValkey("cache");
+var cache = builder.AddValkey(ResourceNames.Cache);
 cache.WithRedisInsightForValkey(configureContainer =>
 {
     configureContainer.WithExplicitStart();
@@ -24,17 +25,17 @@ cache.WithRedisInsightForValkey(configureContainer =>
 });
 
 var geoip = builder
-    .AddContainer("geoip-api", "observabilitystack/geoip-api")
+    .AddContainer(ResourceNames.GeoIpApi, "observabilitystack/geoip-api")
     .WithHttpEndpoint(targetPort: 8080, name: "http")
     .WithUrl("/8.8.8.8", "Test for 8.8.8.8");
 var geoipEndpoint = geoip.GetEndpoint("http");
 
 var spatialApi = builder
-    .AddProject<Projects.DotNetDistributedApp_SpatialApi>("spatial-api")
+    .AddProject<Projects.DotNetDistributedApp_SpatialApi>(ResourceNames.SpatialApi)
     .WithHttpHealthCheck("/health")
     .WithUrl("/scalar", "API UI");
 
-var events = builder.AddKafka("events");
+var events = builder.AddKafka(ResourceNames.Events);
 events.WithKafkaUI(configureContainer =>
 {
     configureContainer.WithParentRelationship(events);
@@ -42,12 +43,12 @@ events.WithKafkaUI(configureContainer =>
 });
 
 var eventsConsumer = builder
-    .AddProject<Projects.DotNetDistributedApp_Events_Consumer>("events-consumer")
+    .AddProject<Projects.DotNetDistributedApp_Events_Consumer>(ResourceNames.EventsConsumer)
     .WithReference(events)
     .WaitFor(events);
 
 var api = builder
-    .AddProject<Projects.DotNetDistributedApp_Api>("api")
+    .AddProject<Projects.DotNetDistributedApp_Api>(ResourceNames.Api)
     .WithHttpHealthCheck("/health")
     .WithUrls(ctx =>
     {

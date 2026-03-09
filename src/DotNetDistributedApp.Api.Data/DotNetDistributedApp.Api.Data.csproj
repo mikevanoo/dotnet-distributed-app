@@ -11,4 +11,7 @@
   <ItemGroup>
     <Content Update="$(NuGetPackageRoot)\microsoft.codeanalysis.workspaces.msbuild\**\**" Visible="false" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DotNetDistributedApp.ServiceDefaults\DotNetDistributedApp.ServiceDefaults.csproj" />
+  </ItemGroup>
 </Project>

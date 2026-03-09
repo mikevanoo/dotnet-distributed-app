@@ -1,4 +1,5 @@
 using DotNetDistributedApp.Api.Data.Weather;
+using DotNetDistributedApp.ServiceDefaults;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,8 +18,8 @@ public static class ServiceCollectionExtensions
         services.AddDbContextPool<WeatherDbContext>(options =>
         {
             var connectionString =
-                configuration.GetConnectionString("api-database")
-                ?? throw new InvalidOperationException("Connection string 'api-database' not found.");
+                configuration.GetConnectionString(ResourceNames.ApiDatabase)
+                ?? throw new InvalidOperationException($"Connection string '{ResourceNames.ApiDatabase}' not found.");
             options
                 .UseNpgsql(
                     connectionString,

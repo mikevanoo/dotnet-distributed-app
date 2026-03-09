@@ -1,3 +1,4 @@
+using DotNetDistributedApp.ServiceDefaults;
 using Microsoft.AspNetCore.StaticFiles;
 using Scalar.AspNetCore;
 
@@ -21,13 +22,13 @@ public static class CoreWebApplicationExtensions
             webApplication.MapScalarApiReference();
             // add the manually generated geoip OpenApi here because we can't add it to the geoip container itself
             webApplication.MapScalarApiReference(
-                "/scalar/geoip-api",
+                $"/scalar/{ResourceNames.GeoIpApi}",
                 options =>
                 {
-                    options.WithTitle("GeoIP API").WithOpenApiRoutePattern("/openapi/geoip-api.yaml");
+                    options.WithTitle("GeoIP API").WithOpenApiRoutePattern($"/openapi/{ResourceNames.GeoIpApi}.yaml");
                     options.AddServer(
-                        webApplication.Configuration["services:geoip-api:http:0"]
-                            ?? throw new InvalidOperationException("Base url for 'geoip-api' not found.")
+                        webApplication.Configuration[$"services:{ResourceNames.GeoIpApi}:http:0"]
+                            ?? throw new InvalidOperationException($"Base url for '{ResourceNames.GeoIpApi}' not found.")
                     );
                 }
             );

@@ -2,6 +2,7 @@ using AwesomeAssertions;
 
 namespace DotNetDistributedApp.IntegrationTests.Api;
 
+[Trait("Category", "Integration")]
 public class WeatherStationsShould(AppHostFixture appHostFixture)
 {
     [Fact]

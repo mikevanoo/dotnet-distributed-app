@@ -1,4 +1,4 @@
-﻿using System.Diagnostics.Metrics;
+using System.Diagnostics.Metrics;
 using AwesomeAssertions;
 using AwesomeAssertions.Extensions;
 using DotNetDistributedApp.Api.Common.Events;
@@ -9,6 +9,7 @@ using NSubstitute;
 
 namespace DotNetDistributedApp.IntegrationTests.Api.Events;
 
+[Trait("Category", "Integration")]
 public class EventsServiceShould(AppHostFixture appHostFixture)
 {
     [Fact]

@@ -9,7 +9,6 @@ using NSubstitute;
 
 namespace DotNetDistributedApp.IntegrationTests.Api.Events;
 
-[Trait("Category", "Integration")]
 public class EventsServiceShould(AppHostFixture appHostFixture)
 {
     [Fact]

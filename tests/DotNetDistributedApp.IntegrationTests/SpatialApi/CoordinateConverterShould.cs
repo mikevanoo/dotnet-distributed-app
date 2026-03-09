@@ -3,7 +3,6 @@ using DotNetDistributedApp.SpatialApi.CoordinateConverter;
 
 namespace DotNetDistributedApp.IntegrationTests.SpatialApi;
 
-[Trait("Category", "Integration")]
 public class CoordinateConverterShould(AppHostFixture appHostFixture)
 {
     [Fact]

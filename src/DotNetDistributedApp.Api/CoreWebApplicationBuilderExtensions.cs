@@ -17,7 +17,7 @@ public static class CoreWebApplicationBuilderExtensions
 {
     public static WebApplicationBuilder AddCoreServices(this WebApplicationBuilder builder)
     {
-        builder.AddServiceDefaults();
+        builder.AddServiceDefaults(MetricsService.MeterName);
 
         builder
             .Services.AddSerilog(config => config.ReadFrom.Configuration(builder.Configuration))

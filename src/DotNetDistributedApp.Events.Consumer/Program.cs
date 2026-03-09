@@ -17,7 +17,7 @@ Log.Logger = new LoggerConfiguration()
 try
 {
     var builder = Host.CreateApplicationBuilder(args);
-    builder.AddServiceDefaults();
+    builder.AddServiceDefaults(MetricsService.MeterName);
     builder
         .Services.AddSerilog(config => config.ReadFrom.Configuration(builder.Configuration))
         .AddSingleton<IMetricsService, MetricsService>()

@@ -1,10 +1,12 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Diagnostics.Metrics;
 
 namespace DotNetDistributedApp.Api.Common.Metrics;
 
 public class MetricsService : IMetricsService
 {
+    public const string MeterName = "DotNetDistributedApp.Api";
+
     private readonly Counter<int> _cacheHits;
     private readonly Counter<int> _cacheMisses;
     private readonly Histogram<long> _databaseQueryTime;
@@ -16,7 +18,7 @@ public class MetricsService : IMetricsService
 
     public MetricsService(IMeterFactory meterFactory)
     {
-        var meter = meterFactory.Create("DotNetDistributedApp.Api");
+        var meter = meterFactory.Create(MeterName);
         _cacheHits = meter.CreateCounter<int>("cache.hits");
         _cacheMisses = meter.CreateCounter<int>("cache.misses");
         _databaseQueryTime = meter.CreateHistogram<long>("database.query_time");

@@ -1,4 +1,4 @@
-﻿using DotNetDistributedApp.Api.Data.Weather;
+using DotNetDistributedApp.Api.Data.Weather;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -7,9 +7,12 @@ namespace DotNetDistributedApp.Api.Data;
 
 public static class ServiceCollectionExtensions
 {
+    private static readonly int DefaultCommandTimeoutSeconds = (int)TimeSpan.FromSeconds(30).TotalSeconds;
+
     public static IServiceCollection AddApiDatabaseContext(
         this IServiceCollection services,
-        ConfigurationManager configuration
+        ConfigurationManager configuration,
+        int? commandTimeoutSeconds = null
     ) =>
         services.AddDbContextPool<WeatherDbContext>(options =>
         {
@@ -21,7 +24,7 @@ public static class ServiceCollectionExtensions
                     connectionString,
                     x =>
                         x.MigrationsHistoryTable("__efmigrationshistory", "public")
-                            .CommandTimeout((int)TimeSpan.FromMinutes(5).TotalSeconds)
+                            .CommandTimeout(commandTimeoutSeconds ?? DefaultCommandTimeoutSeconds)
                             .EnableRetryOnFailure()
                 )
                 .UseSnakeCaseNamingConvention();

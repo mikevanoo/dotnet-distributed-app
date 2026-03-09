@@ -25,7 +25,8 @@ try
             options.SerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
         })
         .AddProblemDetails()
-        .AddOpenApi();
+        .AddOpenApi()
+        .AddValidation();
 
     var app = builder.Build();
 
@@ -41,11 +42,13 @@ try
     var conversionGroup = app.MapGroup("/coordinate-converter");
     conversionGroup.MapGet(
         "/to-os-national-grid-reference",
-        (double latitude, double longitude) => CoordinateConverterService.ToOsgb36(latitude, longitude).ToApiResponse()
+        ([AsParameters] ToOsNationalGridReferenceRequest request) =>
+            CoordinateConverterService.ToOsgb36(request.Latitude, request.Longitude).ToApiResponse()
     );
     conversionGroup.MapGet(
         "/to-latitude-longitude",
-        (double easting, double northing) => CoordinateConverterService.ToWgs84(easting, northing).ToApiResponse()
+        ([AsParameters] ToLatitudeLongitudeRequest request) =>
+            CoordinateConverterService.ToWgs84(request.Easting, request.Northing).ToApiResponse()
     );
 
     app.MapDefaultEndpoints();

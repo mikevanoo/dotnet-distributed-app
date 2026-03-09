@@ -1,6 +1,3 @@
-using System.Collections.Frozen;
-using System.Reflection;
-
 namespace DotNetDistributedApp.Api.Common.Events;
 
 public abstract class BaseEventPayloadDto(string partitionKey)

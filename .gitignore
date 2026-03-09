@@ -7,8 +7,9 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/main/Dotnet.gitignore
 
-# Claude Code
+# AI agent local/personal config
 **/.claude/settings.local.json
+CLAUDE.local.md
 
 # Build results
 [Dd]ebug/

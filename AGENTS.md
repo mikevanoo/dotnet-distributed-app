@@ -25,11 +25,11 @@ Run these from the repository root.
 - **Run:** `dotnet run --project src/DotNetDistributedApp.AppHost` (starts all services via Aspire)
 - **Test (unit):** `dotnet test --project tests/DotNetDistributedApp.Api.Tests && dotnet test --project tests/DotNetDistributedApp.SpatialApi.Tests && dotnet test --project tests/DotNetDistributedApp.Events.Consumer.Tests`
 - **Test (all, requires Docker):** `dotnet test`
-- **Lint check:** `./lint-check.ps1` (runs `dotnet format analyzers --verify-no-changes` and `dotnet csharpier check .`)
-- **Lint fix:** `./lint-fix.ps1` (runs `dotnet format analyzers` and `dotnet csharpier format .`)
+- **Lint check:** `pwsh ./lint-check.ps1` (runs `dotnet format analyzers --verify-no-changes` and `dotnet csharpier check .`)
+- **Lint fix:** `pwsh ./lint-fix.ps1` (runs `dotnet format analyzers` and `dotnet csharpier format .`)
 - **Restore tools:** `dotnet tool restore` (installs CSharpier and NSwag)
 
-Always run `./lint-fix.ps1` before committing. The CI pipeline enforces both analyzer rules and CSharpier formatting.
+Always run `pwsh ./lint-fix.ps1` before committing. The CI pipeline enforces both analyzer rules and CSharpier formatting.
 
 ## Project Structure
 
@@ -72,10 +72,12 @@ The `AppHost` project defines the dependency graph. When adding or modifying ser
 ### Patterns Used
 
 - **Minimal API with extension methods** - endpoints are registered via `Map*Endpoints()` extension methods on `WebApplication`, service registration via `Add*Services()` extension methods on `WebApplicationBuilder`. Each feature area (Weather, Events) has its own extension methods file.
+- **Request parameter/model validation** - use `System.ComponentModel.DataAnnotations` attributes. 
 - **FluentResults** - all service methods return `Result<T>`. Convert to HTTP responses using `.ToApiResponse()` extension method, which maps `NotFoundError` to 404, other failures to ProblemDetails.
 - **Primary constructors for DI** - services use primary constructors (e.g., `public class WeatherService(WeatherDbContext dbContext, ...)`).
 - **Serilog source-generated logging** - use `[LoggerMessage]` attribute with `partial` methods for high-performance structured logging. Do not use `Console.WriteLine` or string interpolation in log calls.
 - **Central package management** - all NuGet package versions are in `Directory.Packages.props`. Individual `.csproj` files reference packages without versions.
+- **Client generation from OpenApi spec** - use `NSwag` to generate C# client classes from OpenAPI spec. See `src/DotNetDistributedApp.Api/Clients/generate-dtos.ps1`.
 
 ### Patterns NOT Used (Never Suggest)
 
@@ -157,10 +159,10 @@ public partial class SimpleEventMessageHandler(ILogger<SimpleEventMessageHandler
 
 ### Conventions
 
-- Whererever possible, follow test-driven development (TDD) principles: red/green/refactor.
+- Whenever possible, follow test-driven development (TDD) principles: red/green/refactor.
 - Test classes: `[ClassUnderTest]Should` (e.g., `CoordinateConverterClientShould`, `WeatherStationsShould`)
 - Test methods: descriptive sentences without underscores (e.g., `FormatCoordinatesWithInvariantCultureInUrl`, `GetWeatherStationsReturn200OkAndExpectedNumberOfStations`)
-- Do not emit "Arrange", "Act", or "Assert" comments
+- Do not emit "Arrange", "Act", or "Assert" comments - separate test setup, execution, and assertion phases with a single blank line.
 - Use AwesomeAssertions (FluentAssertions fork) for all assertions (e.g., `.Should().BeTrue()`, `.Should().Be200Ok()`)
 - Use NSubstitute for mocking (e.g., `Substitute.For<ILogger<T>>()`)
 - Use xUnit v3 with `[Fact]` and `[Theory]` attributes
@@ -180,7 +182,7 @@ Integration tests use `Aspire.Hosting.Testing` to spin up the full `AppHost` wit
 
 ### Always Do
 
-- Run `./lint-fix.ps1` before committing
+- Run `pwsh ./lint-fix.ps1` before committing
 - Add new package versions to `Directory.Packages.props`, not to individual `.csproj` files
 - Follow existing patterns when adding new endpoints, services, or message handlers
 - Add or update tests for code you change

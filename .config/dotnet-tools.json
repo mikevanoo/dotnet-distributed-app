@@ -15,6 +15,20 @@
         "nswag"
       ],
       "rollForward": false
+    },
+    "dotnet-coverage": {
+      "version": "18.5.2",
+      "commands": [
+        "dotnet-coverage"
+      ],
+      "rollForward": false
+    },
+    "dotnet-reportgenerator-globaltool": {
+      "version": "5.5.3",
+      "commands": [
+        "reportgenerator"
+      ],
+      "rollForward": false
     }
   }
 }

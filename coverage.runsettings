@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="Code Coverage">
+        <Configuration>
+          <CodeCoverage>
+            <ModulePaths>
+              <Include>
+                <ModulePath>.*[/\\]DotNetDistributedApp\.[^/\\]+\.dll$</ModulePath>
+              </Include>
+              <Exclude>
+                <ModulePath>.*Tests\.dll$</ModulePath>
+                <ModulePath>.*AppHost\.dll$</ModulePath>
+                <ModulePath>.*ServiceDefaults\.dll$</ModulePath>
+              </Exclude>
+            </ModulePaths>
+            <Sources>
+              <Exclude>
+                <Source>.*[/\\]obj[/\\].*</Source>
+                <Source>.*[/\\]Migrations[/\\].*</Source>
+                <Source>.*[/\\]WeatherDbContextModelSnapshot\.cs$</Source>
+                <Source>.*[/\\]WeatherStationSeedData\.cs$</Source>
+              </Exclude>
+            </Sources>
+          </CodeCoverage>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>

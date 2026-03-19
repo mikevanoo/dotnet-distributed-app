@@ -10,12 +10,20 @@ A .NET Aspire distributed application demonstrating real-world patterns for buil
 - .NET Aspire for orchestration and service defaults
 - Entity Framework Core 10 with PostgreSQL (snake_case naming convention)
 - Kafka with KafkaFlow for async messaging
-- Valkey (Redis-compatible) for distributed caching and output caching
+- Valkey (Redis-compatible) for output caching, HybridCache backing store, and distributed caching
+- Scalar.AspNetCore for API documentation UI (OpenAPI)
+- Microsoft.Extensions.Http.Resilience for resilient HTTP client policies
 - Serilog for structured logging
 - OpenTelemetry for metrics and tracing
 - FluentResults for error handling (`Result<T>` pattern)
 - CSharpier for code formatting
 - xUnit v3 with Microsoft.Testing.Platform, NSubstitute, AwesomeAssertions
+
+## Prerequisites
+
+- **.NET SDK** - version pinned in `global.json`
+- **Docker** - required for integration tests and `dotnet run` (Aspire spins up containers for Postgres, Kafka, Valkey, GeoIP, etc.)
+- **PowerShell** (optional) - needed only for `.ps1` scripts; bash equivalents exist for lint commands
 
 ## Commands
 
@@ -29,8 +37,11 @@ Run these from the repository root.
 - **Lint check:** `pwsh ./lint-check.ps1` or `./lint-check.sh` (runs `dotnet format analyzers --verify-no-changes` and `dotnet csharpier check .`)
 - **Lint fix:** `pwsh ./lint-fix.ps1` or `./lint-fix.sh` (runs `dotnet format analyzers` and `dotnet csharpier format .`)
 - **Restore tools:** `dotnet tool restore` (installs tools defined in `.config/dotnet-tools.json`)
+- **Add EF Core migration:** `dotnet ef migrations add <MigrationName> --project src/DotNetDistributedApp.Api.Data --startup-project src/DotNetDistributedApp.Api`
 
-Always run `pwsh ./lint-fix.ps1` before committing. The CI pipeline enforces both analyzer rules and CSharpier formatting.
+Run `dotnet tool restore` first if tools have not been restored (required for lint and coverage commands).
+
+Always run `./lint-fix.sh` (or `pwsh ./lint-fix.ps1` on Windows) before committing. The CI pipeline enforces both analyzer rules and CSharpier formatting.
 
 ## Project Structure
 
@@ -38,7 +49,7 @@ Always run `pwsh ./lint-fix.ps1` before committing. The CI pipeline enforces bot
 src/
   DotNetDistributedApp.AppHost/       # Aspire orchestrator - defines all resources and dependencies
   DotNetDistributedApp.Api/           # Main REST API (weather endpoints, event publishing)
-  DotNetDistributedApp.Api.Common/    # Shared code: events, metrics, FluentResults extensions
+  DotNetDistributedApp.Api.Common/    # Shared code: events, metrics, error types, FluentResults extensions
   DotNetDistributedApp.Api.Data/      # EF Core DbContext, entities, migrations, seed data
   DotNetDistributedApp.Api.Data.MigrationService/  # Worker service that runs EF Core migrations
   DotNetDistributedApp.SpatialApi/    # Upstream microservice for coordinate conversion
@@ -58,6 +69,9 @@ tests/
 - `.editorconfig` - comprehensive C# style, naming, and formatting rules
 - `global.json` - pinned .NET SDK version (do not change without explicit request)
 - `DotNetDistributedApp.slnx` - solution file
+- `.config/dotnet-tools.json` - defines required .NET tools (CSharpier, NSwag, dotnet-coverage, reportgenerator). If tools aren't restored, lint and coverage commands fail.
+- `coverage.runsettings` - controls code coverage exclusions, referenced by the coverage command
+- `src/DotNetDistributedApp.ServiceDefaults/ResourceNames.cs` - shared constants for Aspire resource names used throughout AppHost
 
 ## Architecture
 
@@ -65,10 +79,12 @@ tests/
 
 The `AppHost` project defines the dependency graph. When adding or modifying services, update `AppHost.cs`:
 
-- `Api` depends on: PostgreSQL database, SpatialApi, GeoIP container, Valkey cache, Kafka
-- `Api` waits for database migrations to complete before starting
+- `Api` depends on: PostgreSQL database, database migration service, SpatialApi, GeoIP container, Valkey cache, Kafka
+- `Api` has `.WithReference(apiDatabaseMigrations)` and `.WaitForCompletion(apiDatabaseMigrations)` — it will not start until migrations finish
 - `Events.Consumer` connects to Kafka
 - `SpatialApi` is standalone (no external dependencies)
+
+**Note:** `src/DotNetDistributedApp.AppHost/ValkeyBuilderExtensions.cs` is a custom extension adapted from Aspire source code that provides `WithRedisInsightForValkey()`. This is not a standard Aspire method — do not search for it in Aspire docs.
 
 ### Patterns Used
 
@@ -78,7 +94,8 @@ The `AppHost` project defines the dependency graph. When adding or modifying ser
 - **Primary constructors for DI** - services use primary constructors (e.g., `public class WeatherService(WeatherDbContext dbContext, ...)`).
 - **Serilog source-generated logging** - use `[LoggerMessage]` attribute with `partial` methods for high-performance structured logging. Do not use `Console.WriteLine` or string interpolation in log calls.
 - **Central package management** - all NuGet package versions are in `Directory.Packages.props`. Individual `.csproj` files reference packages without versions.
-- **Client generation from OpenApi spec** - use `NSwag` to generate C# client classes from OpenAPI spec. See `src/DotNetDistributedApp.Api/Clients/generate-dtos.ps1`.
+- **Scalar for OpenAPI documentation** - both Api and SpatialApi expose interactive API documentation via `app.MapScalarApiReference()`. New endpoints are automatically documented.
+- **DTO generation from OpenAPI spec** - use `NSwag` to generate DTOs (not full client classes) from OpenAPI spec. See `src/DotNetDistributedApp.Api/Clients/generate-dtos.ps1`.
 
 ### Patterns NOT Used (Never Suggest)
 
@@ -183,7 +200,7 @@ Integration tests use `Aspire.Hosting.Testing` to spin up the full `AppHost` wit
 
 ### Always Do
 
-- Run `pwsh ./lint-fix.ps1` before committing
+- Run `./lint-fix.sh` (or `pwsh ./lint-fix.ps1` on Windows) before committing
 - Add new package versions to `Directory.Packages.props`, not to individual `.csproj` files
 - Follow existing patterns when adding new endpoints, services, or message handlers
 - Add or update tests for code you change

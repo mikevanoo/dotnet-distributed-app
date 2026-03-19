@@ -28,7 +28,9 @@ public static class CoreWebApplicationExtensions
                     options.WithTitle("GeoIP API").WithOpenApiRoutePattern($"/openapi/{ResourceNames.GeoIpApi}.yaml");
                     options.AddServer(
                         webApplication.Configuration[$"services:{ResourceNames.GeoIpApi}:http:0"]
-                            ?? throw new InvalidOperationException($"Base url for '{ResourceNames.GeoIpApi}' not found.")
+                            ?? throw new InvalidOperationException(
+                                $"Base url for '{ResourceNames.GeoIpApi}' not found."
+                            )
                     );
                 }
             );

@@ -16,8 +16,11 @@ public static class WeatherWebApplicationExtensions
         weatherGroup
             .MapGet(
                 "/stations/{stationKey}/historic-data",
-                async ([FromServices] WeatherService weatherService, string stationKey, CancellationToken cancellationToken) =>
-                    (await weatherService.GetWeatherStationHistoricData(stationKey, cancellationToken)).ToApiResponse()
+                async (
+                    [FromServices] WeatherService weatherService,
+                    string stationKey,
+                    CancellationToken cancellationToken
+                ) => (await weatherService.GetWeatherStationHistoricData(stationKey, cancellationToken)).ToApiResponse()
             )
             .CacheOutput(Constants.CachePolicy.WeatherStationHistoricData);
 

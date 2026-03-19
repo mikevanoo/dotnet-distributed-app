@@ -23,6 +23,8 @@ jobs:
 
       - name: Install SSL Certificates
         run: dotnet dev-certs https --trust
+        env:
+          SSL_CERT_DIR: "${{ env.HOME }}/.aspnet/dev-certs/trust"
 
       - name: Restore tools
         run: dotnet tool restore

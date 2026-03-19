@@ -21,8 +21,11 @@ jobs:
         with:
           global-json-file: global.json
 
+      # Workaround from https://github.com/dotnet/aspnetcore/issues/65391#issuecomment-4040414045
       - name: Install SSL Certificates
-        run: dotnet dev-certs https --trust
+        run: |
+          export SSL_CERT_DIR="$HOME/.aspnet/dev-certs/trust:${SSL_CERT_DIR:-/usr/lib/ssl/certs}"
+          dotnet dev-certs https --trust
 
       - name: Restore tools
         run: dotnet tool restore

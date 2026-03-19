@@ -1,0 +1,36 @@
+name: CodeQL
+
+permissions:
+  contents: read
+  security-events: write
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main", "feat/*"]
+  schedule:
+    - cron: "0 6 * * 1"
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: csharp
+
+      - name: Build
+        run: dotnet build
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3

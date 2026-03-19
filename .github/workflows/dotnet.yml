@@ -1,37 +1,43 @@
-# This workflow will build a .NET project
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net
-
 name: .NET
+
 permissions:
   contents: read
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main", "feat/*" ]
+    branches: ["main", "feat/*"]
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        global-json-file: global.json
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
 
-    - name: Install SSL Certificates
-      run: dotnet dev-certs https --trust
+      - name: Restore tools
+        run: dotnet tool restore
 
-    - name: Restore dependencies
-      run: dotnet restore
+      - name: Restore dependencies
+        run: dotnet restore
 
-    - name: Build
-      run: dotnet build --no-restore
+      - name: Build
+        run: dotnet build --no-restore
 
-    - name: Test
-      run: dotnet test --no-build --verbosity normal
+      - name: Lint
+        run: ./lint-check.sh
+
+      - name: Test with coverage
+        run: dotnet dotnet-coverage collect "dotnet test --no-build --verbosity normal" -f cobertura -o tests/coverage.xml --settings coverage.runsettings
+
+      - name: Generate coverage report
+        run: dotnet reportgenerator -reports:tests/coverage.xml -targetdir:coveragereport -reporttypes:MarkdownSummaryGithub
+
+      - name: Coverage summary
+        run: cat coveragereport/SummaryGithub.md >> $GITHUB_STEP_SUMMARY

@@ -26,8 +26,8 @@ Run these from the repository root.
 - **Test (unit):** `dotnet test --project tests/DotNetDistributedApp.Api.Tests && dotnet test --project tests/DotNetDistributedApp.SpatialApi.Tests && dotnet test --project tests/DotNetDistributedApp.Events.Consumer.Tests`
 - **Test (all, requires Docker):** `dotnet test`
 - **Test (code coverage):** `./coverage-report.ps1`
-- **Lint check:** `pwsh ./lint-check.ps1` (runs `dotnet format analyzers --verify-no-changes` and `dotnet csharpier check .`)
-- **Lint fix:** `pwsh ./lint-fix.ps1` (runs `dotnet format analyzers` and `dotnet csharpier format .`)
+- **Lint check:** `pwsh ./lint-check.ps1` or `./lint-check.sh` (runs `dotnet format analyzers --verify-no-changes` and `dotnet csharpier check .`)
+- **Lint fix:** `pwsh ./lint-fix.ps1` or `./lint-fix.sh` (runs `dotnet format analyzers` and `dotnet csharpier format .`)
 - **Restore tools:** `dotnet tool restore` (installs tools defined in `.config/dotnet-tools.json`)
 
 Always run `pwsh ./lint-fix.ps1` before committing. The CI pipeline enforces both analyzer rules and CSharpier formatting.

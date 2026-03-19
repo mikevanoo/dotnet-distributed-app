@@ -23,11 +23,9 @@ jobs:
 
       # Workaround from https://github.com/dotnet/aspnetcore/issues/65391#issuecomment-4040414045
       - name: Install SSL Certificates
-        run: |
-          export SSL_CERT_DIR="$HOME/.aspnet/dev-certs/trust:${SSL_CERT_DIR:-}"
-          dotnet dev-certs https --trust
+        run: dotnet dev-certs https --trust
         env:
-          HOME: $HOME
+          SSL_CERT_DIR: "${{ env.HOME }}/.aspnet/dev-certs/trust:/usr/lib/ssl/certs"
 
       - name: Restore tools
         run: dotnet tool restore

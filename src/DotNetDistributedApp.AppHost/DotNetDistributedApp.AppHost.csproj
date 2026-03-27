@@ -1,10 +1,9 @@
-<Project Sdk="Aspire.AppHost.Sdk/13.1.0">
+<Project Sdk="Aspire.AppHost.Sdk/13.2.0">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <UserSecretsId>fcd287fe-e010-4c97-b87b-ca16697faec6</UserSecretsId>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Aspire.Hosting.AppHost" />
     <PackageReference Include="Aspire.Hosting.Kafka" />
     <PackageReference Include="Aspire.Hosting.PostgreSQL" />
     <PackageReference Include="Aspire.Hosting.Valkey" />

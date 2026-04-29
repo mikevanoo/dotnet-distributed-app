@@ -10,7 +10,6 @@ using DotNetDistributedApp.ServiceDefaults;
 using KafkaFlow;
 using KafkaFlow.Serializer;
 using Microsoft.Extensions.Caching.Hybrid;
-using Microsoft.Extensions.Http.Resilience;
 using Polly;
 using Polly.CircuitBreaker;
 using Polly.Fallback;
@@ -45,11 +44,7 @@ public static class CoreWebApplicationBuilderExtensions
             .AddOpenApi();
 
         builder.ConfigureSpatialApiHttpClient();
-
-        builder.Services.AddHttpClient<GeoIpClient>(client =>
-        {
-            client.BaseAddress = new($"http://{ResourceNames.GeoIpApi}");
-        });
+        builder.ConfigureGeoIpHttpClient();
 
         builder
             .Services.AddApiDatabaseContext(builder.Configuration)
@@ -137,5 +132,35 @@ public static class CoreWebApplicationBuilderExtensions
         spatialApiClient.AddStandardResilienceHandler(
             builder.Configuration.GetSection("HttpClient:CoordinateConverterClient:Resilience")
         );
+    }
+
+    private static void ConfigureGeoIpHttpClient(this WebApplicationBuilder builder)
+    {
+        var geoIpClient = builder.Services.AddHttpClient<GeoIpClient>(client =>
+        {
+            client.BaseAddress = new($"http://{ResourceNames.GeoIpApi}");
+        });
+
+#pragma warning disable EXTEXP0001
+        geoIpClient.RemoveAllResilienceHandlers();
+#pragma warning restore EXTEXP0001
+
+        geoIpClient.AddResilienceHandler(
+            "geoip-fallback",
+            pipeline =>
+                pipeline.AddFallback(
+                    new FallbackStrategyOptions<HttpResponseMessage>
+                    {
+                        ShouldHandle = new PredicateBuilder<HttpResponseMessage>()
+                            .Handle<HttpRequestException>()
+                            .Handle<BrokenCircuitException>()
+                            .Handle<TimeoutRejectedException>(),
+                        FallbackAction = _ =>
+                            Outcome.FromResultAsValueTask(new HttpResponseMessage(HttpStatusCode.NoContent)),
+                    }
+                )
+        );
+
+        geoIpClient.AddStandardResilienceHandler(builder.Configuration.GetSection("HttpClient:GeoIpClient:Resilience"));
     }
 }

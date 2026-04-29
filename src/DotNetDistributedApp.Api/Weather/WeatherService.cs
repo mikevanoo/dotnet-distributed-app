@@ -31,19 +31,19 @@ public class WeatherService(
                     station.Longitude,
                     cancellationToken
                 );
-                if (gridRef.IsSuccess)
+                if (gridRef.IsFailed)
                 {
-                    return new WeatherStationDto
-                    {
-                        Key = station.Key,
-                        DisplayName = station.DisplayName,
-                        Longitude = station.Longitude,
-                        Latitude = station.Latitude,
-                        Easting = gridRef.Value.Easting,
-                        Northing = gridRef.Value.Northing,
-                    };
+                    return null;
                 }
-                return null;
+                return new WeatherStationDto
+                {
+                    Key = station.Key,
+                    DisplayName = station.DisplayName,
+                    Longitude = station.Longitude,
+                    Latitude = station.Latitude,
+                    Easting = gridRef.Value?.Easting,
+                    Northing = gridRef.Value?.Northing,
+                };
             })
             .ToList();
 

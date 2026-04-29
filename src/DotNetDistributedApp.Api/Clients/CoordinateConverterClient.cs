@@ -14,7 +14,7 @@ public partial class CoordinateConverterClient(HttpClient httpClient, ILogger<Co
     {
         var url = string.Format(
             CultureInfo.InvariantCulture,
-            "/coordinate-converter/to-os-national-grid-reference?latitude={0}&longitude={1}",
+            "/v1.0/coordinate-converter/to-os-national-grid-reference?latitude={0}&longitude={1}",
             latitude,
             longitude
         );

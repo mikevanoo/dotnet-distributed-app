@@ -1,5 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <ItemGroup>
+    <PackageReference Include="Asp.Versioning.Http" />
+    <PackageReference Include="Asp.Versioning.OpenApi" />
     <PackageReference Include="DotSpatial.Projections" />
     <PackageReference Include="FluentResults" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />

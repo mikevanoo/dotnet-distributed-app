@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text.Json.Serialization;
 using Asp.Versioning;
 using DotNetDistributedApp.Api.Clients;
@@ -9,6 +10,10 @@ using DotNetDistributedApp.ServiceDefaults;
 using KafkaFlow;
 using KafkaFlow.Serializer;
 using Microsoft.Extensions.Caching.Hybrid;
+using Polly;
+using Polly.CircuitBreaker;
+using Polly.Fallback;
+using Polly.Timeout;
 using Serilog;
 
 namespace DotNetDistributedApp.Api;
@@ -38,14 +43,8 @@ public static class CoreWebApplicationBuilderExtensions
             })
             .AddOpenApi();
 
-        builder.Services.AddHttpClient<CoordinateConverterClient>(client =>
-        {
-            client.BaseAddress = new($"https://{ResourceNames.SpatialApi}");
-        });
-        builder.Services.AddHttpClient<GeoIpClient>(client =>
-        {
-            client.BaseAddress = new($"http://{ResourceNames.GeoIpApi}");
-        });
+        builder.ConfigureSpatialApiHttpClient();
+        builder.ConfigureGeoIpHttpClient();
 
         builder
             .Services.AddApiDatabaseContext(builder.Configuration)
@@ -101,5 +100,67 @@ public static class CoreWebApplicationBuilderExtensions
         builder.Services.AddScoped<IEventsService, EventsService>();
 
         return builder;
+    }
+
+    private static void ConfigureSpatialApiHttpClient(this WebApplicationBuilder builder)
+    {
+        var spatialApiClient = builder.Services.AddHttpClient<CoordinateConverterClient>(client =>
+        {
+            client.BaseAddress = new($"https://{ResourceNames.SpatialApi}");
+        });
+
+#pragma warning disable EXTEXP0001
+        spatialApiClient.RemoveAllResilienceHandlers();
+#pragma warning restore EXTEXP0001
+
+        spatialApiClient.AddResilienceHandler(
+            "spatial-fallback",
+            pipeline =>
+                pipeline.AddFallback(
+                    new FallbackStrategyOptions<HttpResponseMessage>
+                    {
+                        ShouldHandle = new PredicateBuilder<HttpResponseMessage>()
+                            .Handle<HttpRequestException>()
+                            .Handle<BrokenCircuitException>()
+                            .Handle<TimeoutRejectedException>(),
+                        FallbackAction = _ =>
+                            Outcome.FromResultAsValueTask(new HttpResponseMessage(HttpStatusCode.NoContent)),
+                    }
+                )
+        );
+
+        spatialApiClient.AddStandardResilienceHandler(
+            builder.Configuration.GetSection("HttpClient:CoordinateConverterClient:Resilience")
+        );
+    }
+
+    private static void ConfigureGeoIpHttpClient(this WebApplicationBuilder builder)
+    {
+        var geoIpClient = builder.Services.AddHttpClient<GeoIpClient>(client =>
+        {
+            client.BaseAddress = new($"http://{ResourceNames.GeoIpApi}");
+        });
+
+#pragma warning disable EXTEXP0001
+        geoIpClient.RemoveAllResilienceHandlers();
+#pragma warning restore EXTEXP0001
+
+        geoIpClient.AddResilienceHandler(
+            "geoip-fallback",
+            pipeline =>
+                pipeline.AddFallback(
+                    new FallbackStrategyOptions<HttpResponseMessage>
+                    {
+                        ShouldHandle = new PredicateBuilder<HttpResponseMessage>()
+                            .Handle<HttpRequestException>()
+                            .Handle<BrokenCircuitException>()
+                            .Handle<TimeoutRejectedException>(),
+                        FallbackAction = _ =>
+                            Outcome.FromResultAsValueTask(new HttpResponseMessage(HttpStatusCode.NoContent)),
+                    }
+                )
+        );
+
+        geoIpClient.AddStandardResilienceHandler(builder.Configuration.GetSection("HttpClient:GeoIpClient:Resilience"));
     }
 }

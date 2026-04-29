@@ -6,7 +6,7 @@ namespace DotNetDistributedApp.Api.Clients;
 
 public partial class CoordinateConverterClient(HttpClient httpClient, ILogger<CoordinateConverterClient> logger)
 {
-    public async Task<Result<OsNationalGridReferenceDto>> ToOsNationalGridReference(
+    public async Task<Result<OsNationalGridReferenceDto?>> ToOsNationalGridReference(
         double latitude,
         double longitude,
         CancellationToken cancellationToken = default
@@ -21,7 +21,17 @@ public partial class CoordinateConverterClient(HttpClient httpClient, ILogger<Co
 
         try
         {
-            var result = await httpClient.GetFromJsonAsync<OsNationalGridReferenceDto>(url, cancellationToken);
+            var response = await httpClient.GetAsync(url, cancellationToken);
+
+            if (response.StatusCode == HttpStatusCode.NoContent)
+            {
+                LogResilienceFallbackUsed(latitude, longitude);
+                return Result.Ok<OsNationalGridReferenceDto?>(null);
+            }
+
+            response.EnsureSuccessStatusCode();
+
+            var result = await response.Content.ReadFromJsonAsync<OsNationalGridReferenceDto>(cancellationToken);
             if (result is null)
             {
                 return Result.Fail(
@@ -29,7 +39,7 @@ public partial class CoordinateConverterClient(HttpClient httpClient, ILogger<Co
                 );
             }
 
-            return Result.Ok(result);
+            return Result.Ok<OsNationalGridReferenceDto?>(result);
         }
         catch (HttpRequestException ex)
         {
@@ -50,4 +60,11 @@ public partial class CoordinateConverterClient(HttpClient httpClient, ILogger<Co
         double longitude,
         HttpStatusCode? statusCode
     );
+
+    [LoggerMessage(
+        LogLevel.Warning,
+        "Coordinate conversion fell back for latitude={Latitude}, longitude={Longitude}; "
+            + "SpatialApi was unreachable or pipeline exhausted. Returning null grid reference."
+    )]
+    private partial void LogResilienceFallbackUsed(double latitude, double longitude);
 }

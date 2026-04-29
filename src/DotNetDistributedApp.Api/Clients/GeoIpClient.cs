@@ -1,3 +1,4 @@
+using System.Net;
 using DotNetDistributedApp.Api.Common.Metrics;
 using Microsoft.Extensions.Caching.Hybrid;
 
@@ -30,6 +31,13 @@ public partial class GeoIpClient(
                     metricsService.CacheMiss(1, cacheKey);
 
                     var response = await httpClient.GetAsync(url, token);
+
+                    if (response.StatusCode == HttpStatusCode.NoContent)
+                    {
+                        LogResilienceFallbackUsed(ipAddress);
+                        return null;
+                    }
+
                     if (!response.IsSuccessStatusCode)
                     {
                         LogCouldNotGetGeoInformation(ipAddress);
@@ -66,4 +74,11 @@ public partial class GeoIpClient(
 
     [LoggerMessage(LogLevel.Warning, "Could not get geo information for IP address {IpAddress}")]
     private partial void LogCouldNotGetGeoInformation(string ipAddress);
+
+    [LoggerMessage(
+        LogLevel.Warning,
+        "GeoIP lookup fell back for IP address {IpAddress}; "
+            + "GeoIP API was unreachable or pipeline exhausted. Returning null."
+    )]
+    private partial void LogResilienceFallbackUsed(string ipAddress);
 }

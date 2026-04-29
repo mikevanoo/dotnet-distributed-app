@@ -63,8 +63,20 @@ public class CoordinateConverterClientShould
         var result = await client.ToOsNationalGridReference(51.479, -0.449, TestContext.Current.CancellationToken);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.Easting.Should().Be(507800);
+        result.Value.Should().NotBeNull();
+        result.Value!.Easting.Should().Be(507800);
         result.Value.Northing.Should().Be(176700);
+    }
+
+    [Fact]
+    public async Task ReturnSuccessfulNullValueWhenHandlerReturnsNoContent()
+    {
+        var client = CreateClient(_ => new HttpResponseMessage(HttpStatusCode.NoContent));
+
+        var result = await client.ToOsNationalGridReference(51.479, -0.449, TestContext.Current.CancellationToken);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().BeNull();
     }
 
     private CoordinateConverterClient CreateClient(Func<HttpRequestMessage, HttpResponseMessage> handler)

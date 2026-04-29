@@ -8,8 +8,10 @@ public static class EventsWebApplicationExtensions
 {
     public static WebApplication MapEventsEndpoints(this WebApplication webApplication)
     {
-        var eventsGroup = webApplication.MapGroup("/events");
-        eventsGroup.MapPost(
+        var api = webApplication.NewVersionedApi("Events");
+        var v1v2 = api.MapGroup("/v{version:apiVersion}/events").HasApiVersion(1.0).HasApiVersion(2.0);
+
+        v1v2.MapPost(
             "/simple-event",
             async ([FromBody] [Required] SimpleEventRequest body, [FromServices] IEventsService eventsService) =>
             {
@@ -20,7 +22,7 @@ public static class EventsWebApplicationExtensions
             }
         );
 
-        eventsGroup.MapPost(
+        v1v2.MapPost(
             "/failing-event",
             async ([FromServices] IEventsService eventsService) =>
                 await eventsService.SendEvent(Topics.Common, new FailingEventPayloadDto(Guid.NewGuid().ToString()))

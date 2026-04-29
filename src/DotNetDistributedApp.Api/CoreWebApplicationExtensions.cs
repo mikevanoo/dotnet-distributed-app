@@ -18,8 +18,17 @@ public static class CoreWebApplicationExtensions
 
         if (webApplication.Environment.IsDevelopment())
         {
-            webApplication.MapOpenApi();
-            webApplication.MapScalarApiReference();
+            webApplication.MapOpenApi().WithDocumentPerVersion();
+            webApplication.MapScalarApiReference(options =>
+            {
+                var descriptions = webApplication.DescribeApiVersions();
+                for (var index = 0; index < descriptions.Count; index++)
+                {
+                    var description = descriptions[index];
+                    var isDefault = index == descriptions.Count - 1;
+                    options.AddDocument(description.GroupName, description.GroupName, isDefault: isDefault);
+                }
+            });
             // add the manually generated geoip OpenApi here because we can't add it to the geoip container itself
             webApplication.MapScalarApiReference(
                 $"/scalar/{ResourceNames.GeoIpApi}",

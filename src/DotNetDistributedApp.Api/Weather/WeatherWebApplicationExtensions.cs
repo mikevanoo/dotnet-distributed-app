@@ -8,7 +8,6 @@ public static class WeatherWebApplicationExtensions
     public static WebApplication MapWeatherEndpoints(this WebApplication webApplication)
     {
         var api = webApplication.NewVersionedApi("Weather");
-
         var v1v2 = api.MapGroup("/v{version:apiVersion}/weather").HasApiVersion(1.0).HasApiVersion(2.0);
         var v2 = api.MapGroup("/v{version:apiVersion}/weather").HasApiVersion(2.0);
 

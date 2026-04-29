@@ -1,9 +1,9 @@
 using System.Text.Json.Serialization;
+using Asp.Versioning;
 using DotNetDistributedApp.Api.Clients;
 using DotNetDistributedApp.Api.Common.Events;
 using DotNetDistributedApp.Api.Common.Metrics;
 using DotNetDistributedApp.Api.Data;
-using DotNetDistributedApp.Api.Data.Weather;
 using DotNetDistributedApp.Api.Weather;
 using DotNetDistributedApp.ServiceDefaults;
 using KafkaFlow;
@@ -26,6 +26,16 @@ public static class CoreWebApplicationBuilderExtensions
                 options.SerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
             })
             .AddProblemDetails()
+            // Ordering for versioning and OpenApi is essential: AddApiVersion() then AddApiExplorer() then AddOpenApi()
+            .AddApiVersioning(options =>
+            {
+                // API versioning by URL segment (api/v1/users)
+                options.ApiVersionReader = new UrlSegmentApiVersionReader();
+            })
+            .AddApiExplorer(options =>
+            {
+                options.GroupNameFormat = "'v'VVV";
+            })
             .AddOpenApi();
 
         builder.Services.AddHttpClient<CoordinateConverterClient>(client =>

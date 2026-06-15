@@ -2,6 +2,7 @@
     <Folder Name="/files/">
         <File Path=".gitignore" />
         <File Path="lint-fix.sh" />
+        <File Path="nuget.config" />
         <File Path="README.md" />
         <File Path=".editorconfig" />
         <File Path="AGENTS.md" />

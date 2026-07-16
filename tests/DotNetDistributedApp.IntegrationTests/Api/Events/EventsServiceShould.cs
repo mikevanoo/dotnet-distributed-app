@@ -33,7 +33,8 @@ public class EventsServiceShould(AppHostFixture appHostFixture)
                     .Handle(
                         Arg.Any<IMessageContext>(),
                         Arg.Is<TestMessage>(x =>
-                            x.EventName == "test-message"
+                            x != null
+                            && x.EventName == "test-message"
                             && x.PartitionKey == expectedPartitionKey
                             && x.Text == expectedValue
                         )

@@ -48,7 +48,9 @@ try
                                 middlewares
                                     .AddDeserializer<JsonCoreDeserializer>()
                                     .Add<RetryDeadLetterMiddleware>()
-                                    .Add<WeatherDeduplicationMiddleware>()
+                                    // MiddlewareLifetime.Message is needed so that each worker gets their own WeatherDbContext (thread-safety)
+                                    // and this also lets the middleware and handlers share the middlewares DB transaction
+                                    .Add<WeatherDeduplicationMiddleware>(MiddlewareLifetime.Message)
                                     .AddTypedHandlers(x => x.AddHandler<SimpleEventMessageHandler>())
                                     .AddTypedHandlers(x => x.AddHandler<FailingEventMessageHandler>())
                             )

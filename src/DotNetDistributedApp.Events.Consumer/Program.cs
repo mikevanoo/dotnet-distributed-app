@@ -1,6 +1,7 @@
 using System.Globalization;
 using DotNetDistributedApp.Api.Common.Events;
 using DotNetDistributedApp.Api.Common.Metrics;
+using DotNetDistributedApp.Api.Data;
 using DotNetDistributedApp.Events.Consumer;
 using DotNetDistributedApp.ServiceDefaults;
 using KafkaFlow;
@@ -20,6 +21,7 @@ try
     builder.AddServiceDefaults(MetricsService.MeterName);
     builder
         .Services.AddSerilog(config => config.ReadFrom.Configuration(builder.Configuration))
+        .AddApiDatabaseContext(builder.Configuration)
         .AddSingleton<IMetricsService, MetricsService>()
         .AddSingleton<IEventsService, EventsService>()
         .Configure<RetryDeadLetterOptions>(builder.Configuration.GetSection("RetryDeadLetter"))
@@ -46,6 +48,7 @@ try
                                 middlewares
                                     .AddDeserializer<JsonCoreDeserializer>()
                                     .Add<RetryDeadLetterMiddleware>()
+                                    .Add<WeatherDeduplicationMiddleware>()
                                     .AddTypedHandlers(x => x.AddHandler<SimpleEventMessageHandler>())
                                     .AddTypedHandlers(x => x.AddHandler<FailingEventMessageHandler>())
                             )

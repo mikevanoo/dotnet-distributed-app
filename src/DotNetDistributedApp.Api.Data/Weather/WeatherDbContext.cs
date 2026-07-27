@@ -47,6 +47,7 @@ public class WeatherDbContext(DbContextOptions<WeatherDbContext> options) : DbCo
     {
         var entity = modelBuilder.Entity<ProcessedWeatherEvent>();
 
+        entity.HasKey(x => new { x.Id, x.ConsumerGroup });
         entity.HasIndex(x => new { x.EventName, x.ProcessedAtUtc });
     }
 }

@@ -3,6 +3,7 @@ using System;
 using DotNetDistributedApp.Api.Data.Weather;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace DotNetDistributedApp.Api.Data.Migrations
 {
     [DbContext(typeof(WeatherDbContext))]
-    partial class WeatherDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260727134801_ChangeProcessedWeatherEventsPK")]
+    partial class ChangeProcessedWeatherEventsPK
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -62,8 +65,8 @@ namespace DotNetDistributedApp.Api.Data.Migrations
                     b.HasKey("Id", "ConsumerGroup")
                         .HasName("pk_processed_weather_events");
 
-                    b.HasIndex("EventName", "ProcessedAtUtc")
-                        .HasDatabaseName("ix_processed_weather_events_event_name_processed_at_utc");
+                    b.HasIndex("Id", "ProcessedAtUtc")
+                        .HasDatabaseName("ix_processed_weather_events_id_processed_at_utc");
 
                     b.ToTable("processed_weather_events", (string)null);
                 });

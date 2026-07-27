@@ -45,7 +45,9 @@ events.WithKafkaUI(configureContainer =>
 var eventsConsumer = builder
     .AddProject<Projects.DotNetDistributedApp_Events_Consumer>(ResourceNames.EventsConsumer)
     .WithReference(events)
-    .WaitFor(events);
+    .WaitFor(events)
+    .WithReference(apiDatabase)
+    .WaitForCompletion(apiDatabaseMigrations);
 
 var api = builder
     .AddProject<Projects.DotNetDistributedApp_Api>(ResourceNames.Api)
@@ -64,7 +66,6 @@ var api = builder
         ctx.Urls.Add(new ResourceUrlAnnotation { Url = $"{baseUrl}/scalar/geoip-api", DisplayText = "GeoIP API UI" });
     })
     .WithReference(apiDatabase)
-    .WithReference(apiDatabaseMigrations)
     .WaitForCompletion(apiDatabaseMigrations)
     .WithReference(spatialApi)
     .WaitFor(spatialApi)

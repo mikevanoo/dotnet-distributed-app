@@ -15,6 +15,7 @@ public class MetricsService : IMetricsService
     private readonly Counter<int> _consumeEventSuccess;
     private readonly Counter<int> _consumeEventFailed;
     private readonly Counter<int> _consumeEventUnrecognised;
+    private readonly Counter<int> _consumeEventDuplicate;
 
     public MetricsService(IMeterFactory meterFactory)
     {
@@ -27,6 +28,7 @@ public class MetricsService : IMetricsService
         _consumeEventSuccess = meter.CreateCounter<int>("events.consume_success");
         _consumeEventFailed = meter.CreateCounter<int>("events.consume_failed");
         _consumeEventUnrecognised = meter.CreateCounter<int>("events.consume_unrecognised");
+        _consumeEventDuplicate = meter.CreateCounter<int>("events.consume_duplicate");
     }
 
     public void CacheHit(int delta, string cacheKey) =>
@@ -52,4 +54,7 @@ public class MetricsService : IMetricsService
 
     public void ConsumeEventUnrecognised(int delta, string topic, string eventName) =>
         _consumeEventUnrecognised.Add(delta, new TagList { { "topic", topic }, { "event_name", eventName } });
+
+    public void ConsumeEventDuplicate(int delta, string topic, string eventName) =>
+        _consumeEventDuplicate.Add(delta, new TagList { { "topic", topic }, { "event_name", eventName } });
 }

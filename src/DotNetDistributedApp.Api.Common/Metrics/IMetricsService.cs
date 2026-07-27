@@ -10,4 +10,5 @@ public interface IMetricsService
     public void ConsumeEventSuccess(int delta, string topic, string eventName);
     public void ConsumeEventFailed(int delta, string topic, string eventName);
     public void ConsumeEventUnrecognised(int delta, string topic, string eventName);
+    public void ConsumeEventDuplicate(int delta, string topic, string eventName);
 }

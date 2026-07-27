@@ -97,6 +97,16 @@ The `AppHost` project defines the dependency graph. When adding or modifying ser
 - **Scalar for OpenAPI documentation** - both Api and SpatialApi expose interactive API documentation via `app.MapScalarApiReference()`. New endpoints are automatically documented.
 - **DTO generation from OpenAPI spec** - use `NSwag` to generate DTOs (not full client classes) from OpenAPI spec. See `src/DotNetDistributedApp.Api/Clients/generate-dtos.ps1`.
 
+### Kafka Consumer Idempotency (Constraints)
+
+The consumer pipeline is a transactional inbox: `WeatherDeduplicationMiddleware` opens a DB transaction, skips already-processed events, runs the handlers inside that transaction, and records a `ProcessedWeatherEvent` row. Handler DB writes therefore commit atomically with the "event processed" record. Registration lives in `src/DotNetDistributedApp.Events.Consumer/ServiceCollectionExtensions.cs`.
+
+Three non-obvious constraints hold this together. All three are enforced by `EventsConsumerRegistrationShould` - if you break one, that test tells you why.
+
+- **Exactly one `IMessageHandler<T>` per payload type.** KafkaFlow's `TypedHandlerMiddleware` runs all handlers for a payload type **concurrently** (`Task.WhenAll`). Since handlers are scoped, two handlers for one payload type would share a single `WeatherDbContext` in parallel, which is not thread-safe. To react to one event in several ways, do it in one handler.
+- **Every `AddTypedHandlers` call needs `WithHandlerLifetime(InstanceLifetime.Scoped)`.** KafkaFlow defaults handlers to `Singleton`, and the setting does not carry across `AddTypedHandlers` calls. A singleton handler resolves a captive root `WeatherDbContext` instead of the per-message scoped one, so its writes fall outside the middleware's transaction.
+- **Middleware that injects a `DbContext` must be registered `MiddlewareLifetime.Message`.** `Add<T>()` defaults to `ConsumerOrProducer`, which shares one instance across all workers of a consumer.
+
 ### Patterns NOT Used (Never Suggest)
 
 - Repository pattern - use EF Core `DbContext` directly
@@ -222,3 +232,4 @@ Integration tests use `Aspire.Hosting.Testing` to spin up the full `AppHost` wit
 - Add `Console.WriteLine` or use string interpolation in log calls
 - Use block-scoped namespaces
 - Run integration tests as part of quick feedback loops (they require Docker and are slow)
+- Register a second `IMessageHandler<T>` for a payload type that already has one, or register message handlers without `WithHandlerLifetime(InstanceLifetime.Scoped)` - see [Kafka Consumer Idempotency (Constraints)](#kafka-consumer-idempotency-constraints)

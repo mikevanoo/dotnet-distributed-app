@@ -4,8 +4,6 @@ using DotNetDistributedApp.Api.Common.Metrics;
 using DotNetDistributedApp.Api.Data;
 using DotNetDistributedApp.Events.Consumer;
 using DotNetDistributedApp.ServiceDefaults;
-using KafkaFlow;
-using KafkaFlow.Serializer;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -25,38 +23,7 @@ try
         .AddSingleton<IMetricsService, MetricsService>()
         .AddSingleton<IEventsService, EventsService>()
         .Configure<RetryDeadLetterOptions>(builder.Configuration.GetSection("RetryDeadLetter"))
-        .AddKafkaFlowHostedService(kafka =>
-        {
-            var kafkaConnectionString = builder.Configuration.GetConnectionString(ResourceNames.Events);
-            kafka.AddCluster(cluster =>
-                cluster
-                    .WithBrokers([kafkaConnectionString])
-                    .CreateTopicIfNotExists(Topics.Common, 1, 1)
-                    .CreateTopicIfNotExists(Topics.CommonDlq, 1, 1)
-                    .AddProducer<DlqProducer>(producer =>
-                        producer
-                            .DefaultTopic(Topics.CommonDlq)
-                            .AddMiddlewares(m => m.AddSerializer<JsonCoreSerializer>())
-                    )
-                    .AddConsumer(consumer =>
-                        consumer
-                            .Topic(Topics.Common)
-                            .WithGroupId(ResourceNames.EventsConsumer)
-                            .WithBufferSize(5)
-                            .WithWorkersCount(3)
-                            .AddMiddlewares(middlewares =>
-                                middlewares
-                                    .AddDeserializer<JsonCoreDeserializer>()
-                                    .Add<RetryDeadLetterMiddleware>()
-                                    // MiddlewareLifetime.Message is needed so that each worker gets their own WeatherDbContext (thread-safety)
-                                    // and this also lets the middleware and handlers share the middlewares DB transaction
-                                    .Add<WeatherDeduplicationMiddleware>(MiddlewareLifetime.Message)
-                                    .AddTypedHandlers(x => x.AddHandler<SimpleEventMessageHandler>())
-                                    .AddTypedHandlers(x => x.AddHandler<FailingEventMessageHandler>())
-                            )
-                    )
-            );
-        });
+        .AddEventsConsumerKafka(builder.Configuration);
 
     var app = builder.Build();
     await app.RunAsync();

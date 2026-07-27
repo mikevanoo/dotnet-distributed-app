@@ -20,7 +20,7 @@ public class SimpleEventMessageHandlerShould
 
         logger.ShouldHaveLogged(
             LogLevel.Information,
-            $"Handling simple event: {{\"EventName\":\"simple-event\",\"Value\":\"{payload.Value}\",\"PartitionKey\":\"{payload.PartitionKey}\"}}"
+            $"Handling simple event: {{\"EventName\":\"simple-event\",\"Value\":\"{payload.Value}\",\"EventId\":\"{payload.EventId}\",\"PartitionKey\":\"{payload.PartitionKey}\"}}"
         );
     }
 }

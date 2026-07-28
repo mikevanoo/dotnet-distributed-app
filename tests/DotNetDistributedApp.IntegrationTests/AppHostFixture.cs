@@ -1,10 +1,17 @@
+using System.Diagnostics.Metrics;
 using Aspire.Hosting;
 using DotNetDistributedApp.Api.Common.Events;
+using DotNetDistributedApp.Api.Common.Metrics;
+using DotNetDistributedApp.Api.Data;
+using DotNetDistributedApp.Api.Data.Weather;
+using DotNetDistributedApp.Events.Consumer;
 using DotNetDistributedApp.IntegrationTests;
 using DotNetDistributedApp.IntegrationTests.Api.Events;
 using DotNetDistributedApp.ServiceDefaults;
 using KafkaFlow;
 using KafkaFlow.Serializer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 
@@ -12,6 +19,31 @@ using NSubstitute;
 
 namespace DotNetDistributedApp.IntegrationTests;
 
+/*
+ * Assembly-level fixture: one AppHost, shared by every test class, started once.
+ *
+ * It holds TWO service providers, each with its own IKafkaBus, and they are not interchangeable:
+ *
+ *   #1  ConfigureKafkaServices        - producer + a minimal mock-handler consumer, for producer tests.
+ *                                       Reached via GetMessageProducer<T>() / GetMessageHandler<T>().
+ *   #2  ConfigureEventsConsumerServices - the real AddEventsConsumerKafka pipeline hosted in-process, for
+ *                                       tests that need the deduplication inbox or the consumer's metrics.
+ *                                       Reached via EventsConsumerServices / CreateEventsConsumerScope().
+ *
+ * Two containers rather than one is a constraint: CreateKafkaBus resolves a SINGLE KafkaFlowConfigurator, so a
+ * second AddKafka call in the same container would make the first cluster silently unreachable.
+ *
+ * What keeps the two buses (and the out-of-process events-consumer service) from stealing each other's
+ * messages is not DI - all three read the same `common` topic. It is the consumer group id: Kafka gives every
+ * group its own copy of every message.
+ *
+ * >> Scope every processed_weather_events assertion to EventsConsumerGroupId. Postgres has a data volume so
+ * >> rows outlive the run, and the real events-consumer writes its own rows throughout. This is the one rule
+ * >> you can break and still get a passing test today.
+ *
+ * Full explanation, including the DLQ producer gotcha and how to write a new events-consumer test: README.md
+ * in this project.
+ */
 public class AppHostFixture : IAsyncLifetime
 {
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(60);
@@ -19,6 +51,27 @@ public class AppHostFixture : IAsyncLifetime
     public DistributedApplication App { get; private set; } = null!;
     private ServiceProvider _kafkaServiceProvider = null!;
     private IKafkaBus _kafkaBus = null!;
+    private ServiceProvider _eventsConsumerServiceProvider = null!;
+    private IKafkaBus _eventsConsumerKafkaBus = null!;
+
+    /// <summary>
+    /// The consumer group used by the in-process events consumer pipeline, unique per run. Filter every
+    /// <c>processed_weather_events</c> assertion by this.
+    /// </summary>
+    public string EventsConsumerGroupId { get; } = $"integration-tests-events-consumer-{Guid.NewGuid()}";
+
+    /// <summary>
+    /// The service provider hosting the real events consumer pipeline, for tests that need to reach past the
+    /// pipeline into its dependencies — <see cref="IMeterFactory"/> to observe the consumer's metrics, or
+    /// <see cref="WeatherDbContext"/> (via <see cref="CreateEventsConsumerScope"/>) to assert on the inbox table.
+    /// </summary>
+    public IServiceProvider EventsConsumerServices => _eventsConsumerServiceProvider;
+
+    /// <summary>
+    /// Creates a DI scope over <see cref="EventsConsumerServices"/>. <see cref="WeatherDbContext"/> is scoped
+    /// and pooled, so it must be resolved from a scope rather than the root provider.
+    /// </summary>
+    public AsyncServiceScope CreateEventsConsumerScope() => _eventsConsumerServiceProvider.CreateAsyncScope();
 
     public async ValueTask InitializeAsync()
     {
@@ -47,6 +100,7 @@ public class AppHostFixture : IAsyncLifetime
             .WaitAsync(DefaultTimeout, cancellationToken);
 
         await ConfigureKafkaServices(cancellationToken);
+        await ConfigureEventsConsumerServices(cancellationToken);
     }
 
     public static CancellationToken CreateCancellationToken(TimeSpan? timeout = null) =>
@@ -54,10 +108,30 @@ public class AppHostFixture : IAsyncLifetime
 
     public async ValueTask DisposeAsync()
     {
+        await _eventsConsumerKafkaBus.StopAsync();
+        await PurgeEventsConsumerInboxRows();
+        await _eventsConsumerServiceProvider.DisposeAsync();
         await _kafkaBus.StopAsync();
         await _kafkaServiceProvider.DisposeAsync();
         await App.DisposeAsync();
         GC.SuppressFinalize(this);
+    }
+
+    /*
+     * Stops the table growing a run's worth of rows every time the suite executes (Postgres has a data volume).
+     *
+     * Not a before-each clear: test classes run in parallel, so a broader delete would remove rows another class
+     * is still waiting on, and would strip the real events-consumer service of records it needs. At dispose the
+     * in-process consumer is already stopped, so nothing can be writing under this group id.
+     */
+    private async ValueTask PurgeEventsConsumerInboxRows()
+    {
+        await using var scope = CreateEventsConsumerScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<WeatherDbContext>();
+
+        await dbContext
+            .ProcessedWeatherEvents.Where(x => x.ConsumerGroup == EventsConsumerGroupId)
+            .ExecuteDeleteAsync(CreateCancellationToken());
     }
 
     private async ValueTask ConfigureKafkaServices(CancellationToken cancellationToken)
@@ -109,6 +183,53 @@ public class AppHostFixture : IAsyncLifetime
         _kafkaServiceProvider = kafkaServices.BuildServiceProvider();
         _kafkaBus = _kafkaServiceProvider.CreateKafkaBus();
         await _kafkaBus.StartAsync(cancellationToken);
+    }
+
+    // Hosts the real AddEventsConsumerKafka pipeline in-process. The service registrations below mirror
+    // Events.Consumer/Program.cs - if the pipeline gains a dependency there, it needs one here too.
+    private async ValueTask ConfigureEventsConsumerServices(CancellationToken cancellationToken)
+    {
+        // The real connection strings are only known after the Kafka and Postgres containers have started.
+        var configuration = new ConfigurationManager();
+        configuration.AddInMemoryCollection(
+            new Dictionary<string, string?>
+            {
+                [$"ConnectionStrings:{ResourceNames.Events}"] = await App.GetConnectionStringAsync(
+                    ResourceNames.Events,
+                    cancellationToken
+                ),
+                [$"ConnectionStrings:{ResourceNames.ApiDatabase}"] = await App.GetConnectionStringAsync(
+                    ResourceNames.ApiDatabase,
+                    cancellationToken
+                ),
+                // Production backs off 2s/4s/8s before dead-lettering, which is longer than a test wants to wait.
+                ["RetryDeadLetter:MaxRetryCount"] = "1",
+                ["RetryDeadLetter:RetryDelay"] = "00:00:00.200",
+                ["RetryDeadLetter:UseExponentialBackoff"] = "false",
+            }
+        );
+
+        var services = new ServiceCollection();
+        services
+            .AddLogging()
+            .AddMetrics()
+            .AddApiDatabaseContext(configuration)
+            .AddSingleton<IMetricsService, MetricsService>()
+            .Configure<RetryDeadLetterOptions>(configuration.GetSection("RetryDeadLetter"))
+            .AddEventsConsumerKafka(
+                configuration,
+                consumer => consumer.WithGroupId(EventsConsumerGroupId).WithAutoOffsetReset(AutoOffsetReset.Earliest)
+            );
+
+        // Scope validation matches what Host.CreateApplicationBuilder turns on in Development, and is what fails
+        // loudly if a handler is ever registered singleton and captures a root WeatherDbContext instead of the
+        // middleware's scoped one. Without it this fixture would reproduce the silent Production failure mode.
+        _eventsConsumerServiceProvider = services.BuildServiceProvider(
+            new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true }
+        );
+        // AddKafkaFlowHostedService only registers an IHostedService that would call this; there is no Host here.
+        _eventsConsumerKafkaBus = _eventsConsumerServiceProvider.CreateKafkaBus();
+        await _eventsConsumerKafkaBus.StartAsync(cancellationToken);
     }
 
     public IMessageProducer<T> GetMessageProducer<T>() =>

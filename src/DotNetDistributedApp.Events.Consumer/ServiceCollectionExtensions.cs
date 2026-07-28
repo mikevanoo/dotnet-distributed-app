@@ -1,6 +1,7 @@
 using DotNetDistributedApp.Api.Common.Events;
 using DotNetDistributedApp.ServiceDefaults;
 using KafkaFlow;
+using KafkaFlow.Configuration;
 using KafkaFlow.Serializer;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,9 +18,17 @@ public static class ServiceCollectionExtensions
     /// <c>EventsConsumerRegistrationShould</c> — the guard tests only have value if they exercise the
     /// real configuration rather than a copy of it.
     /// </remarks>
+    /// <param name="configuration">Supplies the <c>events</c> connection string.</param>
+    /// <param name="configureConsumer">
+    /// Applied last, so it can override anything configured here. Production passes nothing. It exists for
+    /// <c>DotNetDistributedApp.IntegrationTests</c>, which hosts this pipeline in-process and must give it a
+    /// different group id: a second consumer in the <c>events-consumer</c> group would share the single
+    /// partition with the real service, so only one of them would see any given message.
+    /// </param>
     public static IServiceCollection AddEventsConsumerKafka(
         this IServiceCollection services,
-        IConfiguration configuration
+        IConfiguration configuration,
+        Action<IConsumerConfigurationBuilder>? configureConsumer = null
     ) =>
         services.AddKafkaFlowHostedService(kafka =>
         {
@@ -35,6 +44,7 @@ public static class ServiceCollectionExtensions
                             .AddMiddlewares(m => m.AddSerializer<JsonCoreSerializer>())
                     )
                     .AddConsumer(consumer =>
+                    {
                         consumer
                             .Topic(Topics.Common)
                             .WithGroupId(ResourceNames.EventsConsumer)
@@ -60,8 +70,11 @@ public static class ServiceCollectionExtensions
                                         x.WithHandlerLifetime(InstanceLifetime.Scoped)
                                             .AddHandler<FailingEventMessageHandler>()
                                     )
-                            )
-                    )
+                            );
+
+                        // Last, so an integration test can override anything set above. See the parameter docs.
+                        configureConsumer?.Invoke(consumer);
+                    })
             );
         });
 }

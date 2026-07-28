@@ -13,7 +13,8 @@ matters. If you are writing anything that touches the events consumer, read on.
 
 `AppHostFixture.ConfigureKafkaServices` builds the original one: a producer plus a deliberately minimal
 consumer — deserializer, then `DelegatingTestMessageHandler` wrapping an NSubstitute mock. That is all
-`EventsServiceShould` needs, because it is testing the *producer*.
+`EventsServiceShould` needs, because it is testing the *producer*. It also carries a second consumer, on
+`common-dlq`, that feeds `DeadLetterRecorder` — see [Asserting an absence](#asserting-an-absence).
 
 It cannot serve the deduplication tests. It has no `RetryDeadLetterMiddleware`, no
 `WeatherDeduplicationMiddleware`, no `WeatherDbContext`, and its handlers are not registered `Scoped`.
@@ -120,6 +121,7 @@ There is no routing. Each fixture member is hard-wired to one provider:
 |---------------------------------|----------|------------------------------------------------------|
 | `GetMessageProducer<T>()`       | #1       | `IMessageProducer<EventsService>`                     |
 | `GetMessageHandler<T>()`        | #1       | the NSubstitute `IMessageHandler<TestMessage>`        |
+| `WaitForDeadLetteredEvent()`    | #1       | a barrier: provider #2's pipeline gave up on an event |
 | `EventsConsumerServices`        | #2       | `IMeterFactory`, and anything else the pipeline has   |
 | `CreateEventsConsumerScope()`   | #2       | a scope to resolve `WeatherDbContext` from            |
 | `EventsConsumerGroupId`         | #2       | the value to filter inbox assertions by               |
@@ -151,6 +153,37 @@ consumer on `common-dlq`.
 
 Retry timings are shortened in the fixture (1 retry, flat 200ms) so the retry → DLQ path completes inside a
 test's patience. Production backs off 2s/4s/8s.
+
+## Asserting an absence
+
+Step 3 above only works for effects that *appear*. `NotThrowAfterAsync` returns at the first poll where its
+assertion holds, so wrapping `BeEmpty()` in it asserts nothing at all: "no inbox row" is true before the
+consumer has even been assigned the partition, and the test passes however broken the pipeline is.
+
+To assert that something was *not* written you need a barrier — a signal proving the pipeline is finished with
+the event — and then a single unpolled assertion. The failure path writes nothing to the database by design, so
+the barrier has to come from Kafka: `await appHostFixture.WaitForDeadLetteredEvent(payload.EventId, ct)`.
+
+Why that is sound, and why each piece is load-bearing:
+
+- **Dead lettering is terminal.** `RetryDeadLetterMiddleware` produces to `common-dlq` only after exhausting
+  retries, and completes the message afterwards, so nothing further happens to the event.
+- **The rollback strictly precedes it.** `WeatherDeduplicationMiddleware`'s `await using` transaction is
+  disposed — and so rolled back — while the handler's exception unwinds, before the retry middleware's `catch`
+  runs. Once the dead letter exists, the inbox is final for that event.
+- **The group id matters.** All three consumer groups run the pipeline and each dead letters its own copy, so
+  the recorder filters on `DeadLetterHeaders.ConsumerGroup`, a header `RetryDeadLetterMiddleware` sets from
+  `context.ConsumerContext.GroupId`. The `events-consumer` service can beat the in-process pipeline to the DLQ;
+  waiting on *its* dead letter would put the barrier back before the rollback it is meant to prove.
+- **The recorder is a separate consumer.** Typed handlers are configured per consumer, so
+  `DeadLetteredFailingEventMessageHandler` only ever sees `common-dlq`. A handler that also fired on the
+  original `common` message would prove nothing. Note that the events-consumer pipeline itself must never
+  subscribe to `common-dlq` — it would deserialize its own dead letters and fail them all over again.
+
+One asymmetry to know when a test like this goes red: a middleware that records the inbox row *despite* the
+handler throwing makes the retry find the event already processed, skip the handler and succeed — so the event
+is never dead lettered and you get a barrier timeout rather than a failed `BeEmpty()`. `WaitForDeadLetteredEvent`
+throws a `TimeoutException` spelling that out.
 
 ## Naming
 

@@ -62,7 +62,10 @@ public partial class RetryDeadLetterMiddleware(
             }
 
             var partitionKey = payload.PartitionKey;
-            await dlqProducer.ProduceAsync(Topics.CommonDlq, partitionKey, payload);
+            var headers = new MessageHeaders();
+            headers.SetString(DeadLetterHeaders.ConsumerGroup, context.ConsumerContext.GroupId);
+
+            await dlqProducer.ProduceAsync(Topics.CommonDlq, partitionKey, payload, headers);
             LogMessageSentToDeadLetterTopic(Topics.CommonDlq, partitionKey, failure.Message);
         }
         catch (Exception ex)
@@ -90,3 +93,14 @@ public partial class RetryDeadLetterMiddleware(
 
 /// <summary>Marker type for the DLQ producer dependency injection.</summary>
 public sealed class DlqProducer;
+
+/// <summary>Headers <see cref="RetryDeadLetterMiddleware"/> sets on the messages it dead letters.</summary>
+public static class DeadLetterHeaders
+{
+    /// <summary>
+    /// The consumer group that exhausted its retries. Every group subscribed to <see cref="Topics.Common"/> gets its
+    /// own copy of every message and runs its own copy of this pipeline, so the dead letter topic can hold one message
+    /// per group for a single event. Without this header they are indistinguishable.
+    /// </summary>
+    public const string ConsumerGroup = "dead-letter-consumer-group";
+}

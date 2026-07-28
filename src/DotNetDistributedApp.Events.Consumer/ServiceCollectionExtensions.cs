@@ -18,6 +18,7 @@ public static class ServiceCollectionExtensions
     /// <c>EventsConsumerRegistrationShould</c> — the guard tests only have value if they exercise the
     /// real configuration rather than a copy of it.
     /// </remarks>
+    /// <param name="services">The service collection to add the KafkaFlow services to.</param>
     /// <param name="configuration">Supplies the <c>events</c> connection string.</param>
     /// <param name="configureConsumer">
     /// Applied last, so it can override anything configured here. Production passes nothing. It exists for

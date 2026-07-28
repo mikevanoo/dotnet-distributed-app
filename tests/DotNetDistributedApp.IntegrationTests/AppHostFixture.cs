@@ -7,6 +7,7 @@ using DotNetDistributedApp.Api.Data.Weather;
 using DotNetDistributedApp.Events.Consumer;
 using DotNetDistributedApp.IntegrationTests;
 using DotNetDistributedApp.IntegrationTests.Api.Events;
+using DotNetDistributedApp.IntegrationTests.EventsConsumer;
 using DotNetDistributedApp.ServiceDefaults;
 using KafkaFlow;
 using KafkaFlow.Serializer;
@@ -24,8 +25,10 @@ namespace DotNetDistributedApp.IntegrationTests;
  *
  * It holds TWO service providers, each with its own IKafkaBus, and they are not interchangeable:
  *
- *   #1  ConfigureKafkaServices        - producer + a minimal mock-handler consumer, for producer tests.
- *                                       Reached via GetMessageProducer<T>() / GetMessageHandler<T>().
+ *   #1  ConfigureKafkaServices        - producer + a minimal mock-handler consumer, for producer tests, plus a
+ *                                       consumer on common-dlq for tests that need to know an event was dead lettered.
+ *                                       Reached via GetMessageProducer<T>() / GetMessageHandler<T>() /
+ *                                       WaitForDeadLetteredEvent().
  *   #2  ConfigureEventsConsumerServices - the real AddEventsConsumerKafka pipeline hosted in-process, for
  *                                       tests that need the deduplication inbox or the consumer's metrics.
  *                                       Reached via EventsConsumerServices / CreateEventsConsumerScope().
@@ -143,6 +146,7 @@ public class AppHostFixture : IAsyncLifetime
         kafkaServices
             .AddLogging()
             .AddSingleton(Substitute.For<IMessageHandler<TestMessage>>())
+            .AddSingleton<DeadLetterRecorder>()
             .AddKafka(kafka =>
                 kafka
                     .UseMicrosoftLog()
@@ -150,10 +154,35 @@ public class AppHostFixture : IAsyncLifetime
                         cluster
                             .WithBrokers([kafkaConnectionString])
                             .CreateTopicIfNotExists(Topics.Common, 1, 1)
+                            .CreateTopicIfNotExists(Topics.CommonDlq, 1, 1)
                             .AddProducer<EventsService>(producer =>
                                 producer
                                     .DefaultTopic(Topics.Common)
                                     .AddMiddlewares(m => m.AddSerializer<JsonCoreSerializer>())
+                            )
+                            /*
+                             * Observes the dead letter topic so a test can await an event reaching it. Nothing else
+                             * consumes common-dlq, and the events-consumer pipeline must not: it would deserialize its
+                             * own dead letters back off the topic and fail them all over again.
+                             *
+                             * It is a separate consumer rather than another handler on the one below because typed
+                             * handlers are configured per consumer. Keeping them apart is what makes the barrier mean
+                             * something - a handler that fired on the original common message would prove nothing.
+                             */
+                            .AddConsumer(consumer =>
+                                consumer
+                                    .Topic(Topics.CommonDlq)
+                                    .WithGroupId($"integration-tests-dead-letter-{Guid.NewGuid()}")
+                                    .WithAutoOffsetReset(AutoOffsetReset.Earliest)
+                                    .WithBufferSize(5)
+                                    .WithWorkersCount(1)
+                                    .AddMiddlewares(middlewares =>
+                                        middlewares
+                                            .AddDeserializer<JsonCoreDeserializer>()
+                                            .AddTypedHandlers(x =>
+                                                x.AddHandler<DeadLetteredFailingEventMessageHandler>()
+                                            )
+                                    )
                             )
                             .AddConsumer(consumer =>
                                 consumer
@@ -230,6 +259,45 @@ public class AppHostFixture : IAsyncLifetime
         // AddKafkaFlowHostedService only registers an IHostedService that would call this; there is no Host here.
         _eventsConsumerKafkaBus = _eventsConsumerServiceProvider.CreateKafkaBus();
         await _eventsConsumerKafkaBus.StartAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Completes once the in-process events consumer pipeline has dead lettered <paramref name="eventId"/>, meaning it
+    /// exhausted its retries and gave up. Use it as a barrier before asserting that a failed event left no trace:
+    /// <see cref="WeatherDeduplicationMiddleware"/>'s transaction is disposed — and so rolled back — as the handler's
+    /// exception unwinds, strictly before <see cref="RetryDeadLetterMiddleware"/> catches it and produces to
+    /// <c>common-dlq</c>. Once the dead letter arrives, the inbox is in its final state for that event.
+    /// </summary>
+    /// <remarks>
+    /// The recorder lives in provider #1 (it is a consumer of <c>common-dlq</c>) but filters on provider #2's group id.
+    /// The <c>events-consumer</c> service dead letters the same event under its own group id, and can beat the
+    /// in-process pipeline to it — waiting on that one would put the barrier back before the rollback it is meant to
+    /// prove has happened.
+    /// </remarks>
+    public async Task WaitForDeadLetteredEvent(Guid eventId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _kafkaServiceProvider
+                .GetRequiredService<DeadLetterRecorder>()
+                .WaitFor(EventsConsumerGroupId, eventId, cancellationToken);
+        }
+        catch (OperationCanceledException exception)
+        {
+            throw new TimeoutException(
+                $"""
+                Timed out waiting for event {eventId} to reach {Topics.CommonDlq} under consumer group
+                {EventsConsumerGroupId}.
+
+                Either the in-process pipeline never received the event, or it stopped failing before its retries ran
+                out - which is itself a failure worth reading carefully. If WeatherDeduplicationMiddleware records the
+                inbox row despite the handler throwing, the retry finds the event already processed, skips the handler,
+                and succeeds. The event is then never dead lettered, so this barrier times out instead of the emptiness
+                assertion failing.
+                """,
+                exception
+            );
+        }
     }
 
     public IMessageProducer<T> GetMessageProducer<T>() =>

@@ -11,4 +11,5 @@ public static class ResourceNames
     public const string Events = "events";
     public const string EventsConsumer = "events-consumer";
     public const string Api = "api";
+    public const string ScheduledTasks = "scheduled-tasks";
 }

@@ -76,4 +76,9 @@ var api = builder
     .WithReference(events)
     .WaitFor(events);
 
+var scheduledTasks = builder
+    .AddProject<Projects.DotNetDistributedApp_ScheduledTasks>(ResourceNames.ScheduledTasks)
+    .WithReference(apiDatabase)
+    .WaitForCompletion(apiDatabaseMigrations);
+
 builder.Build().Run();

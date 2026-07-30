@@ -19,6 +19,7 @@
         <File Path=".github\workflows\dotnet.yml" />
     </Folder>
     <Folder Name="/src/">
+        <Project Path="src/DotNetDistributedApp.ScheduledTasks\DotNetDistributedApp.ScheduledTasks.csproj" />
         <Project Path="src\DotNetDistributedApp.Api.Common\DotNetDistributedApp.Api.Common.csproj" />
         <Project Path="src\DotNetDistributedApp.Api.Data.MigrationService\DotNetDistributedApp.Api.Data.MigrationService.csproj" />
         <Project Path="src\DotNetDistributedApp.Api.Data\DotNetDistributedApp.Api.Data.csproj" />
@@ -29,8 +30,8 @@
         <Project Path="src\DotNetDistributedApp.SpatialApi\DotNetDistributedApp.SpatialApi.csproj" />
     </Folder>
     <Folder Name="/tests/">
-        <Project Path="tests/DotNetDistributedApp.Api.Tests/DotNetDistributedApp.Api.Tests.csproj" />
-        <Project Path="tests/DotNetDistributedApp.Events.Consumer.Tests/DotNetDistributedApp.Events.Consumer.Tests.csproj" />
+        <Project Path="tests/DotNetDistributedApp.Api.Tests\DotNetDistributedApp.Api.Tests.csproj" />
+        <Project Path="tests/DotNetDistributedApp.Events.Consumer.Tests\DotNetDistributedApp.Events.Consumer.Tests.csproj" />
         <Project Path="tests\DotNetDistributedApp.IntegrationTests\DotNetDistributedApp.IntegrationTests.csproj" />
         <Project Path="tests\DotNetDistributedApp.SpatialApi.Tests\DotNetDistributedApp.SpatialApi.Tests.csproj" />
     </Folder>

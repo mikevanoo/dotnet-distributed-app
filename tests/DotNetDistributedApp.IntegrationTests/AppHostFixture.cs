@@ -112,7 +112,7 @@ public class AppHostFixture : IAsyncLifetime
     public async ValueTask DisposeAsync()
     {
         await _eventsConsumerKafkaBus.StopAsync();
-        await PurgeEventsConsumerInboxRows();
+        await PurgeProcessedWeatherEvents();
         await _eventsConsumerServiceProvider.DisposeAsync();
         await _kafkaBus.StopAsync();
         await _kafkaServiceProvider.DisposeAsync();
@@ -127,7 +127,7 @@ public class AppHostFixture : IAsyncLifetime
      * is still waiting on, and would strip the real events-consumer service of records it needs. At dispose the
      * in-process consumer is already stopped, so nothing can be writing under this group id.
      */
-    private async ValueTask PurgeEventsConsumerInboxRows()
+    private async ValueTask PurgeProcessedWeatherEvents()
     {
         await using var scope = CreateEventsConsumerScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<WeatherDbContext>();

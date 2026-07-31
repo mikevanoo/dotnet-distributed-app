@@ -12,10 +12,10 @@ namespace DotNetDistributedApp.IntegrationTests.EventsConsumer;
 public class WeatherDeduplicationMiddlewareShould(AppHostFixture appHostFixture)
 {
     [Fact]
-    public async Task RecordSingleInboxRowNoDuplicateMetricForSingleEventConsumed()
+    public async Task RecordSingleProcessedEventNoDuplicateMetricForSingleEventConsumed()
     {
         var cancellationToken = AppHostFixture.CreateCancellationToken();
-        var payload = new SimpleEventPayloadDto(Guid.NewGuid().ToString(), "inbox-row-probe");
+        var payload = new SimpleEventPayloadDto(Guid.NewGuid().ToString(), "processed-event-probe");
         using var duplicateMetrics = new MetricCollector<int>(
             appHostFixture.EventsConsumerServices.GetRequiredService<IMeterFactory>(),
             MetricsService.MeterName,
@@ -29,12 +29,12 @@ public class WeatherDeduplicationMiddlewareShould(AppHostFixture appHostFixture)
         await FluentActions
             .Awaiting(async () =>
             {
-                (await GetInboxRows(payload.EventId, cancellationToken)).Should().ContainSingle();
+                (await GetProcessedEvents(payload.EventId, cancellationToken)).Should().ContainSingle();
             })
             .Should()
             .NotThrowAfterAsync(30.Seconds(), 250.Milliseconds());
 
-        var row = (await GetInboxRows(payload.EventId, cancellationToken)).Single();
+        var row = (await GetProcessedEvents(payload.EventId, cancellationToken)).Single();
         row.EventName.Should().Be(payload.EventName);
         row.Topic.Should().Be(Topics.Common);
         row.PartitionKey.Should().Be(payload.PartitionKey);
@@ -48,10 +48,10 @@ public class WeatherDeduplicationMiddlewareShould(AppHostFixture appHostFixture)
     }
 
     [Fact]
-    public async Task RecordSingleInboxRowWithDuplicateMetricForDuplicateEventsConsumed()
+    public async Task RecordSingleProcessedEventRowWithDuplicateMetricForDuplicateEventsConsumed()
     {
         var cancellationToken = AppHostFixture.CreateCancellationToken();
-        var payload = new SimpleEventPayloadDto(Guid.NewGuid().ToString(), "inbox-row-probe");
+        var payload = new SimpleEventPayloadDto(Guid.NewGuid().ToString(), "processed-event-probe");
         using var duplicateMetrics = new MetricCollector<int>(
             appHostFixture.EventsConsumerServices.GetRequiredService<IMeterFactory>(),
             MetricsService.MeterName,
@@ -66,12 +66,12 @@ public class WeatherDeduplicationMiddlewareShould(AppHostFixture appHostFixture)
         await FluentActions
             .Awaiting(async () =>
             {
-                (await GetInboxRows(payload.EventId, cancellationToken)).Should().ContainSingle();
+                (await GetProcessedEvents(payload.EventId, cancellationToken)).Should().ContainSingle();
             })
             .Should()
             .NotThrowAfterAsync(30.Seconds(), 250.Milliseconds());
 
-        var row = (await GetInboxRows(payload.EventId, cancellationToken)).Single();
+        var row = (await GetProcessedEvents(payload.EventId, cancellationToken)).Single();
         row.EventName.Should().Be(payload.EventName);
         row.Topic.Should().Be(Topics.Common);
         row.PartitionKey.Should().Be(payload.PartitionKey);
@@ -85,7 +85,7 @@ public class WeatherDeduplicationMiddlewareShould(AppHostFixture appHostFixture)
     }
 
     [Fact]
-    public async Task NotRecordInboxRowWhenConsumedEventThrows()
+    public async Task NotRecordProcessedEventWhenConsumedEventThrows()
     {
         var cancellationToken = AppHostFixture.CreateCancellationToken();
         var payload = new FailingEventPayloadDto(Guid.NewGuid().ToString());
@@ -100,7 +100,7 @@ public class WeatherDeduplicationMiddlewareShould(AppHostFixture appHostFixture)
 
         await appHostFixture.WaitForDeadLetteredEvent(payload.EventId, cancellationToken);
 
-        (await GetInboxRows(payload.EventId, cancellationToken)).Should().BeEmpty();
+        (await GetProcessedEvents(payload.EventId, cancellationToken)).Should().BeEmpty();
 
         duplicateMetrics
             .GetMeasurementSnapshot()
@@ -111,11 +111,13 @@ public class WeatherDeduplicationMiddlewareShould(AppHostFixture appHostFixture)
             );
     }
 
-    private async Task<List<ProcessedWeatherEvent>> GetInboxRows(Guid eventId, CancellationToken cancellationToken)
+    private async Task<List<ProcessedWeatherEvent>> GetProcessedEvents(
+        Guid eventId,
+        CancellationToken cancellationToken
+    )
     {
         await using var scope = appHostFixture.CreateEventsConsumerScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<WeatherDbContext>();
-
         return await dbContext
             .ProcessedWeatherEvents.AsNoTracking()
             .Where(x => x.ConsumerGroup == appHostFixture.EventsConsumerGroupId && x.Id == eventId)

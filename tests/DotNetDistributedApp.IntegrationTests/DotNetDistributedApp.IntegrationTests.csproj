@@ -40,6 +40,7 @@
     <ProjectReference Include="..\..\src\DotNetDistributedApp.Api\DotNetDistributedApp.Api.csproj" />
     <ProjectReference Include="..\..\src\DotNetDistributedApp.AppHost\DotNetDistributedApp.AppHost.csproj" />
     <ProjectReference Include="..\..\src\DotNetDistributedApp.Events.Consumer\DotNetDistributedApp.Events.Consumer.csproj" />
+    <ProjectReference Include="..\..\src\DotNetDistributedApp.ScheduledTasks\DotNetDistributedApp.ScheduledTasks.csproj" />
     <ProjectReference Include="..\..\src\DotNetDistributedApp.SpatialApi\DotNetDistributedApp.SpatialApi.csproj" />
   </ItemGroup>
 </Project>

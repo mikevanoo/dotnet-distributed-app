@@ -184,14 +184,3 @@ One asymmetry to know when a test like this goes red: a middleware that records 
 handler throwing makes the retry find the event already processed, skip the handler and succeed — so the event
 is never dead lettered and you get a barrier timeout rather than a failed `BeEmpty()`. `WaitForDeadLetteredEvent`
 throws a `TimeoutException` spelling that out.
-
-## Naming
-
-The `KAFKA-IDEMPOTENCY-PLAN.md` design document uses earlier names. The code has:
-
-| Plan                          | Code                             |
-|-------------------------------|----------------------------------|
-| `ProcessedEvent`              | `ProcessedWeatherEvent`          |
-| `processed_events`            | `processed_weather_events`       |
-| `InboxDeduplicationMiddleware`| `WeatherDeduplicationMiddleware` |
-| `event_id` column             | `id`                             |

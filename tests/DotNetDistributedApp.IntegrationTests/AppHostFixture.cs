@@ -106,8 +106,33 @@ public class AppHostFixture : IAsyncLifetime
         await ConfigureEventsConsumerServices(cancellationToken);
     }
 
-    public static CancellationToken CreateCancellationToken(TimeSpan? timeout = null) =>
+    /// <summary>
+    /// An unlinked wall-clock deadline, for this fixture's own lifecycle. Tests should use
+    /// <c>TestContext.Current.CancellationToken</c> or <see cref="CreateDeadline"/> instead.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="DisposeAsync"/> deliberately does not link to <see cref="TestContext"/>'s token: after an aborted
+    /// run that token is already cancelled, and <see cref="PurgeProcessedWeatherEvents"/> would silently skip.
+    /// </remarks>
+    private static CancellationToken CreateCancellationToken(TimeSpan? timeout = null) =>
         new CancellationTokenSource(timeout ?? DefaultTimeout).Token;
+
+    /// <summary>
+    /// A deadline for a wait that would otherwise hang forever — <see cref="WaitForDeadLetteredEvent"/>, or anything
+    /// else awaiting a signal rather than a bounded round trip. Linked to <see cref="TestContext"/>'s token, so an
+    /// aborted run ends the wait as well as the deadline expiring.
+    /// </summary>
+    /// <remarks>
+    /// For ordinary async calls in a test — EF queries, <c>SaveChangesAsync</c>, HTTP requests — pass
+    /// <c>TestContext.Current.CancellationToken</c> directly; those are already bounded and need no deadline.
+    /// </remarks>
+    public static CancellationTokenSource CreateDeadline(TimeSpan? timeout = null)
+    {
+        var deadline = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        deadline.CancelAfter(timeout ?? DefaultTimeout);
+
+        return deadline;
+    }
 
     public async ValueTask DisposeAsync()
     {
@@ -282,7 +307,10 @@ public class AppHostFixture : IAsyncLifetime
                 .GetRequiredService<DeadLetterRecorder>()
                 .WaitFor(EventsConsumerGroupId, eventId, cancellationToken);
         }
+        // An aborted run cancels a CreateDeadline token too, and reporting that as a timeout would bury the real
+        // reason the test stopped.
         catch (OperationCanceledException exception)
+            when (!TestContext.Current.CancellationToken.IsCancellationRequested)
         {
             throw new TimeoutException(
                 $"""

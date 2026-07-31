@@ -184,3 +184,33 @@ One asymmetry to know when a test like this goes red: a middleware that records 
 handler throwing makes the retry find the event already processed, skip the handler and succeed — so the event
 is never dead lettered and you get a barrier timeout rather than a failed `BeEmpty()`. `WaitForDeadLetteredEvent`
 throws a `TimeoutException` spelling that out.
+
+## Cancellation tokens
+
+Three options exist here and they are not interchangeable.
+
+**`TestContext.Current.CancellationToken` is the default.** xUnit signals it when the *run* is aborted (Ctrl+C,
+or `ITestContext.CancelCurrentTest`), and it has no deadline of its own — on a healthy run it is never
+cancelled. That is what you want for anything already bounded: EF queries, `SaveChangesAsync`, `HttpClient`
+calls. Its job is to abort in-flight work when the run is going away.
+
+**`AppHostFixture.CreateDeadline()` is for a wait that would otherwise hang forever** — `WaitForDeadLetteredEvent`,
+or any await on a *signal* rather than a round trip. It is a 60s deadline linked to the token above, so it covers
+both cases. It returns the source, so dispose it: `using var deadline = AppHostFixture.CreateDeadline();`.
+
+The deadline is load-bearing at its one call site. `WaitForDeadLetteredEvent` awaits a `TaskCompletionSource` and
+nothing else bounds it, and the `TimeoutException` above — the message that explains the "recorded the row anyway"
+failure mode — only appears if the token trips. `[Fact(Timeout = …)]` is not a substitute: xUnit races the test
+against `Task.Delay`, throws its own `TestTimeoutException` and never awaits the test's task, so that message is
+discarded. (`WaitForDeadLetteredEvent` skips its `TimeoutException` when the ambient token is cancelled, so an
+aborted run is not misreported as a timeout.)
+
+**`AppHostFixture.CreateCancellationToken()` is the unlinked variant, for the fixture's own lifecycle only.**
+`DisposeAsync` must not inherit an already-cancelled token, or `PurgeProcessedWeatherEvents` silently skips after
+an aborted run and the run's rows survive in the volume.
+
+Two things that look like safety nets and are not. `NotThrowAfterAsync` catches *every* exception while polling
+and its own poll delay is uncancellable, so a cancelled token inside the loop is swallowed and retried until the
+wait time expires. And xUnit1051 only fires when a token argument is *omitted or `default`* — it will not tell
+you that a token is the wrong one, and it says nothing about a call that binds to a `params` overload with no
+token parameter at all (`DbSet.AddRangeAsync(events)` is exactly that).

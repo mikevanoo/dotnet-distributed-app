@@ -15,7 +15,7 @@ public class CoordinateConverterShould(AppHostFixture appHostFixture)
         var response = await CreateClient()
             .GetAsync(
                 ToGridReferenceBaseUrl + "?latitude=58.214&longitude=-6.318",
-                AppHostFixture.CreateCancellationToken()
+                TestContext.Current.CancellationToken
             );
 
         response
@@ -34,7 +34,7 @@ public class CoordinateConverterShould(AppHostFixture appHostFixture)
         var response = await CreateClient()
             .GetAsync(
                 ToLatitudeLongitudeBaseUrl + "?easting=146400&northing=933200",
-                AppHostFixture.CreateCancellationToken()
+                TestContext.Current.CancellationToken
             );
 
         response
@@ -54,7 +54,7 @@ public class CoordinateConverterShould(AppHostFixture appHostFixture)
     [InlineData(ToGridReferenceBaseUrl + "?latitude=0&longitude=-181")]
     public async Task ToOsNationalGridReferenceReturn400ForOutOfRangeCoordinates(string url)
     {
-        var response = await CreateClient().GetAsync(url, AppHostFixture.CreateCancellationToken());
+        var response = await CreateClient().GetAsync(url, TestContext.Current.CancellationToken);
 
         response.Should().Be400BadRequest();
     }
@@ -66,7 +66,7 @@ public class CoordinateConverterShould(AppHostFixture appHostFixture)
     [InlineData(ToLatitudeLongitudeBaseUrl + "?easting=0&northing=1300001")]
     public async Task ToLatitudeLongitudeReturn400ForOutOfRangeCoordinates(string url)
     {
-        var response = await CreateClient().GetAsync(url, AppHostFixture.CreateCancellationToken());
+        var response = await CreateClient().GetAsync(url, TestContext.Current.CancellationToken);
 
         response.Should().Be400BadRequest();
     }

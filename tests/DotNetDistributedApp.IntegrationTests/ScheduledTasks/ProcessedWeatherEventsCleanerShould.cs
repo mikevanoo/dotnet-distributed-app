@@ -33,7 +33,11 @@ public class ProcessedWeatherEventsCleanerShould(AppHostFixture appHostFixture)
             dbContext,
             _metricsService,
             Substitute.For<ILogger<ProcessedWeatherEventsCleaner>>()
-        );
+        )
+        {
+            // Coravel sets this from ICancellableInvocable; without it the deletes under test are uncancellable.
+            CancellationToken = TestContext.Current.CancellationToken,
+        };
 
         var eventToBeDeleted = CreateProcessedEvent(
             _eventName,
@@ -67,12 +71,7 @@ public class ProcessedWeatherEventsCleanerShould(AppHostFixture appHostFixture)
                 },
             }
         );
-        var cleaner = new ProcessedWeatherEventsCleaner(
-            options,
-            dbContext,
-            _metricsService,
-            Substitute.For<ILogger<ProcessedWeatherEventsCleaner>>()
-        );
+        var cleaner = CreateCleaner(options, dbContext);
 
         var eventToBeDeleted = CreateProcessedEvent(
             _eventName,
@@ -89,6 +88,24 @@ public class ProcessedWeatherEventsCleanerShould(AppHostFixture appHostFixture)
         remaining.Single().Id.Should().Be(eventToKeep.Id);
         // stale rows from earlier runs may be swept in the same call, so the count is not exactly 1
         _metricsService.Received(1).ProcessedEventDeleted(Arg.Is<int>(count => count >= 1), "other");
+    }
+
+    private ProcessedWeatherEventsCleaner CreateCleaner(
+        IOptions<ProcessedWeatherEventsCleanerOptions> options,
+        WeatherDbContext dbContext
+    )
+    {
+        var cleaner = new ProcessedWeatherEventsCleaner(
+            options,
+            dbContext,
+            _metricsService,
+            Substitute.For<ILogger<ProcessedWeatherEventsCleaner>>()
+        )
+        {
+            // Coravel sets this from ICancellableInvocable; without it the deletes under test are uncancellable.
+            CancellationToken = TestContext.Current.CancellationToken,
+        };
+        return cleaner;
     }
 
     private static ProcessedWeatherEvent CreateProcessedEvent(
@@ -112,7 +129,9 @@ public class ProcessedWeatherEventsCleanerShould(AppHostFixture appHostFixture)
     {
         await using var scope = appHostFixture.CreateEventsConsumerScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<WeatherDbContext>();
-        await dbContext.ProcessedWeatherEvents.AddRangeAsync(events);
+        // Passing the token also picks the AddRangeAsync(IEnumerable<T>, CancellationToken) overload; an array on its
+        // own binds to AddRangeAsync(params T[]), which has no token parameter and no analyzer warning either.
+        await dbContext.ProcessedWeatherEvents.AddRangeAsync(events, TestContext.Current.CancellationToken);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
     }
 

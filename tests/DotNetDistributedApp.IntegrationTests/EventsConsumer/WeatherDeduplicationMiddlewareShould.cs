@@ -14,7 +14,9 @@ public class WeatherDeduplicationMiddlewareShould(AppHostFixture appHostFixture)
     [Fact]
     public async Task RecordSingleProcessedEventNoDuplicateMetricForSingleEventConsumed()
     {
-        var cancellationToken = AppHostFixture.CreateCancellationToken();
+        // NotThrowAfterAsync below is what bounds this test; the token only needs to abort an in-flight query when
+        // the run is cancelled, which is exactly what TestContext's token does.
+        var cancellationToken = TestContext.Current.CancellationToken;
         var payload = new SimpleEventPayloadDto(Guid.NewGuid().ToString(), "processed-event-probe");
         using var duplicateMetrics = new MetricCollector<int>(
             appHostFixture.EventsConsumerServices.GetRequiredService<IMeterFactory>(),
@@ -50,7 +52,7 @@ public class WeatherDeduplicationMiddlewareShould(AppHostFixture appHostFixture)
     [Fact]
     public async Task RecordSingleProcessedEventRowWithDuplicateMetricForDuplicateEventsConsumed()
     {
-        var cancellationToken = AppHostFixture.CreateCancellationToken();
+        var cancellationToken = TestContext.Current.CancellationToken;
         var payload = new SimpleEventPayloadDto(Guid.NewGuid().ToString(), "processed-event-probe");
         using var duplicateMetrics = new MetricCollector<int>(
             appHostFixture.EventsConsumerServices.GetRequiredService<IMeterFactory>(),
@@ -87,7 +89,13 @@ public class WeatherDeduplicationMiddlewareShould(AppHostFixture appHostFixture)
     [Fact]
     public async Task NotRecordProcessedEventWhenConsumedEventThrows()
     {
-        var cancellationToken = AppHostFixture.CreateCancellationToken();
+        /*
+         * The one test here that needs a deadline rather than TestContext's token: WaitForDeadLetteredEvent awaits a
+         * TaskCompletionSource and nothing else bounds it, and the TimeoutException it throws - the message that
+         * explains the "recorded the row anyway, so the retry succeeded and it was never dead lettered" failure mode -
+         * only appears if the token trips.
+         */
+        using var deadline = AppHostFixture.CreateDeadline();
         var payload = new FailingEventPayloadDto(Guid.NewGuid().ToString());
         using var duplicateMetrics = new MetricCollector<int>(
             appHostFixture.EventsConsumerServices.GetRequiredService<IMeterFactory>(),
@@ -98,9 +106,9 @@ public class WeatherDeduplicationMiddlewareShould(AppHostFixture appHostFixture)
         var producer = appHostFixture.GetMessageProducer<EventsService>();
         await producer.ProduceAsync(Topics.Common, payload.PartitionKey, payload);
 
-        await appHostFixture.WaitForDeadLetteredEvent(payload.EventId, cancellationToken);
+        await appHostFixture.WaitForDeadLetteredEvent(payload.EventId, deadline.Token);
 
-        (await GetProcessedEvents(payload.EventId, cancellationToken)).Should().BeEmpty();
+        (await GetProcessedEvents(payload.EventId, deadline.Token)).Should().BeEmpty();
 
         duplicateMetrics
             .GetMeasurementSnapshot()

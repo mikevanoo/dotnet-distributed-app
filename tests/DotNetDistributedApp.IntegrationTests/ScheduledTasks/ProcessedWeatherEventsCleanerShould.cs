@@ -28,16 +28,7 @@ public class ProcessedWeatherEventsCleanerShould(AppHostFixture appHostFixture)
                 RetentionByEventName = { [_eventName] = TimeSpan.FromMinutes(5) },
             }
         );
-        var cleaner = new ProcessedWeatherEventsCleaner(
-            options,
-            dbContext,
-            _metricsService,
-            Substitute.For<ILogger<ProcessedWeatherEventsCleaner>>()
-        )
-        {
-            // Coravel sets this from ICancellableInvocable; without it the deletes under test are uncancellable.
-            CancellationToken = TestContext.Current.CancellationToken,
-        };
+        var cleaner = CreateCleaner(options, dbContext);
 
         var eventToBeDeleted = CreateProcessedEvent(
             _eventName,
@@ -108,23 +99,6 @@ public class ProcessedWeatherEventsCleanerShould(AppHostFixture appHostFixture)
         return cleaner;
     }
 
-    private static ProcessedWeatherEvent CreateProcessedEvent(
-        string eventName,
-        string consumerGroup,
-        DateTimeOffset processedAtUtc
-    ) =>
-        new()
-        {
-            Id = Guid.NewGuid(),
-            EventName = eventName,
-            Topic = "test-topic",
-            PartitionKey = "test-key",
-            ConsumerGroup = consumerGroup,
-            Partition = 0,
-            Offset = 0,
-            ProcessedAtUtc = processedAtUtc,
-        };
-
     private async Task AddProcessedEvents(params ProcessedWeatherEvent[] events)
     {
         await using var scope = appHostFixture.CreateEventsConsumerScope();
@@ -147,4 +121,21 @@ public class ProcessedWeatherEventsCleanerShould(AppHostFixture appHostFixture)
             .Where(x => x.ConsumerGroup == appHostFixture.EventsConsumerGroupId && x.EventName == eventName)
             .ToListAsync(cancellationToken);
     }
+
+    private static ProcessedWeatherEvent CreateProcessedEvent(
+        string eventName,
+        string consumerGroup,
+        DateTimeOffset processedAtUtc
+    ) =>
+        new()
+        {
+            Id = Guid.NewGuid(),
+            EventName = eventName,
+            Topic = "test-topic",
+            PartitionKey = "test-key",
+            ConsumerGroup = consumerGroup,
+            Partition = 0,
+            Offset = 0,
+            ProcessedAtUtc = processedAtUtc,
+        };
 }

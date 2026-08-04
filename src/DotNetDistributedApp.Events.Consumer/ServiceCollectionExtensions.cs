@@ -1,3 +1,4 @@
+using Confluent.Kafka;
 using DotNetDistributedApp.Api.Common.Events;
 using DotNetDistributedApp.ServiceDefaults;
 using KafkaFlow;
@@ -5,6 +6,7 @@ using KafkaFlow.Configuration;
 using KafkaFlow.Serializer;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Acks = KafkaFlow.Acks;
 
 namespace DotNetDistributedApp.Events.Consumer;
 
@@ -42,6 +44,18 @@ public static class ServiceCollectionExtensions
                     .AddProducer<DlqProducer>(producer =>
                         producer
                             .DefaultTopic(Topics.CommonDlq)
+                            .WithAcks(Acks.All) // Wait for all replicas to acknowledge
+                            .WithProducerConfig(
+                                new ProducerConfig
+                                {
+                                    EnableIdempotence = true, // Prevent duplicate messages on retry
+                                    MessageSendMaxRetries = int.MaxValue, // Rely on timeout instead of retry count
+                                    MessageTimeoutMs = 300000, // Max time to attempt delivery (5 minutes)
+                                    LingerMs = 5, // Wait 5ms to batch messages together for throughput
+                                    BatchSize = 16384, // Max batch size in bytes
+                                    CompressionType = CompressionType.Lz4, // Compress batches to save bandwidth
+                                }
+                            )
                             .AddMiddlewares(m => m.AddSerializer<JsonCoreSerializer>())
                     )
                     .AddConsumer(consumer =>

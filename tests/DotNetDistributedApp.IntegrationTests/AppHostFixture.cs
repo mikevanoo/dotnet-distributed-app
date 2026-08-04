@@ -1,5 +1,6 @@
 using System.Diagnostics.Metrics;
 using Aspire.Hosting;
+using Confluent.Kafka;
 using DotNetDistributedApp.Api.Common.Events;
 using DotNetDistributedApp.Api.Common.Metrics;
 using DotNetDistributedApp.Api.Data;
@@ -15,6 +16,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
+using Acks = KafkaFlow.Acks;
+using AutoOffsetReset = KafkaFlow.AutoOffsetReset;
 
 [assembly: AssemblyFixture(typeof(AppHostFixture))]
 
@@ -183,6 +186,18 @@ public class AppHostFixture : IAsyncLifetime
                             .AddProducer<EventsService>(producer =>
                                 producer
                                     .DefaultTopic(Topics.Common)
+                                    .WithAcks(Acks.All) // Wait for all replicas to acknowledge
+                                    .WithProducerConfig(
+                                        new ProducerConfig
+                                        {
+                                            EnableIdempotence = true, // Prevent duplicate messages on retry
+                                            MessageSendMaxRetries = int.MaxValue, // Rely on timeout instead of retry count
+                                            MessageTimeoutMs = 300000, // Max time to attempt delivery (5 minutes)
+                                            LingerMs = 5, // Wait 5ms to batch messages together for throughput
+                                            BatchSize = 16384, // Max batch size in bytes
+                                            CompressionType = CompressionType.Lz4, // Compress batches to save bandwidth
+                                        }
+                                    )
                                     .AddMiddlewares(m => m.AddSerializer<JsonCoreSerializer>())
                             )
                             /*

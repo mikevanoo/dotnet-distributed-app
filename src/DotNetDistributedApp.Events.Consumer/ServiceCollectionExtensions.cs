@@ -7,6 +7,7 @@ using KafkaFlow.Serializer;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Acks = KafkaFlow.Acks;
+using AutoOffsetReset = KafkaFlow.AutoOffsetReset;
 
 namespace DotNetDistributedApp.Events.Consumer;
 
@@ -63,8 +64,17 @@ public static class ServiceCollectionExtensions
                         consumer
                             .Topic(Topics.Common)
                             .WithGroupId(ResourceNames.EventsConsumer)
-                            .WithBufferSize(5)
-                            .WithWorkersCount(3)
+                            .WithBufferSize(100) // In-memory buffer size per worker
+                            .WithWorkersCount(3) // Number of concurrent processing threads
+                            .WithAutoOffsetReset(AutoOffsetReset.Earliest) // Start from beginning if no offset exists
+                            .WithConsumerConfig(
+                                new ConsumerConfig
+                                {
+                                    EnableAutoCommit = false, // Disable auto-commit; let KafkaFlow commit after success
+                                    MaxPollIntervalMs = 300000, // Max processing time (5 mins) before broker assumes consumer is dead
+                                    SessionTimeoutMs = 10000, // Time before broker detects a silent consumer crash
+                                }
+                            )
                             .AddMiddlewares(middlewares =>
                                 middlewares
                                     .AddDeserializer<JsonCoreDeserializer>()

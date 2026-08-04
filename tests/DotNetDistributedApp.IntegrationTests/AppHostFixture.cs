@@ -214,8 +214,17 @@ public class AppHostFixture : IAsyncLifetime
                                     .Topic(Topics.CommonDlq)
                                     .WithGroupId($"integration-tests-dead-letter-{Guid.NewGuid()}")
                                     .WithAutoOffsetReset(AutoOffsetReset.Earliest)
-                                    .WithBufferSize(5)
-                                    .WithWorkersCount(1)
+                                    .WithBufferSize(100) // In-memory buffer size per worker
+                                    .WithWorkersCount(1) // Number of concurrent processing threads
+                                    .WithAutoOffsetReset(AutoOffsetReset.Earliest) // Start from beginning if no offset exists
+                                    .WithConsumerConfig(
+                                        new ConsumerConfig
+                                        {
+                                            EnableAutoCommit = false, // Disable auto-commit; let KafkaFlow commit after success
+                                            MaxPollIntervalMs = 300000, // Max processing time (5 mins) before broker assumes consumer is dead
+                                            SessionTimeoutMs = 10000, // Time before broker detects a silent consumer crash
+                                        }
+                                    )
                                     .AddMiddlewares(middlewares =>
                                         middlewares
                                             .AddDeserializer<JsonCoreDeserializer>()
@@ -228,19 +237,17 @@ public class AppHostFixture : IAsyncLifetime
                                 consumer
                                     .Topic(Topics.Common)
                                     .WithGroupId($"integration-tests-{Guid.NewGuid()}")
-                                    /*
-                                     * KafkaFlow's StartAsync launches the consumer in the background but returns before
-                                     * partition assignment completes. With the default latest offset reset, the consumer
-                                     * determines its starting position AFTER it first polls the broker. If SendEvent runs
-                                     * while partition assignment is still in progress, the message lands at offset N,
-                                     * and when the consumer finally polls for the first time it sets "start from latest" = N+1
-                                     * thus skipping the message entirely. Using earliest removes the race: the consumer
-                                     * always starts from offset 0, so it catches the message regardless of when it was
-                                     * produced relative to when the consumer subscribed.
-                                     */
-                                    .WithAutoOffsetReset(AutoOffsetReset.Earliest)
-                                    .WithBufferSize(5)
-                                    .WithWorkersCount(3)
+                                    .WithBufferSize(100) // In-memory buffer size per worker
+                                    .WithWorkersCount(1) // Number of concurrent processing threads
+                                    .WithAutoOffsetReset(AutoOffsetReset.Earliest) // Start from beginning if no offset exists
+                                    .WithConsumerConfig(
+                                        new ConsumerConfig
+                                        {
+                                            EnableAutoCommit = false, // Disable auto-commit; let KafkaFlow commit after success
+                                            MaxPollIntervalMs = 300000, // Max processing time (5 mins) before broker assumes consumer is dead
+                                            SessionTimeoutMs = 10000, // Time before broker detects a silent consumer crash
+                                        }
+                                    )
                                     .AddMiddlewares(middlewares =>
                                         middlewares
                                             .AddDeserializer<JsonCoreDeserializer>()

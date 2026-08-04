@@ -56,11 +56,14 @@ _kafkaServiceProvider ──CreateKafkaBus()──▶ _kafkaBus
     deserializer → DelegatingTestMessageHandler → NSubstitute mock
 
 _eventsConsumerServiceProvider ──CreateKafkaBus()──▶ _eventsConsumerKafkaBus
-  AddProducer<DlqProducer>    → common-dlq      (IMessageProducer<DlqProducer>)
+  AddProducer<DlqProducer>    → common-dlq      (IMessageProducer<DlqProducer>, no serializer)
   AddConsumer  group "integration-tests-events-consumer-{guid}"
-    deserializer → RetryDeadLetter → WeatherDeduplication → typed handlers
+    RetryDeadLetter → deserializer → WeatherDeduplication → typed handlers
   + WeatherDbContext, IMetricsService, IMeterFactory
 ```
+
+Note the retry middleware is **outside** the deserializer, and the DLQ producer has **no serializer**. Both are
+load-bearing: see [Dead lettering a message that cannot be read](#dead-lettering-a-message-that-cannot-be-read).
 
 Both buses are started by hand (`CreateKafkaBus().StartAsync()`). `AddKafkaFlowHostedService` registers an
 `IHostedService` that would normally do it, but nothing runs hosted services in a bare container. Both are
@@ -91,11 +94,15 @@ completes; see the comment block in `ConfigureKafkaServices`).
 
 - The real-pipeline consumer also consumes `EventsServiceShould`'s `TestMessage` and writes an inbox row for
   it. It can, because `TestMessage` lives in the test assembly, which is loaded in-process.
-- The out-of-process service cannot: `DefaultTypeResolver` calls
-  `Type.GetType("...TestMessage, DotNetDistributedApp.IntegrationTests")`, gets `null`, and
-  `DeserializerConsumerMiddleware` returns **without calling `next`** — silently dropped.
-- A payload type with no registered handler is harmless. `TypedHandlerMiddleware` invokes
-  `OnNoHandlerFound` (a no-op by default) and then always calls `next`.
+- **The out-of-process service cannot, and now dead letters it.** `Type.GetType("...TestMessage,
+  DotNetDistributedApp.IntegrationTests")` returns `null` there, and `StrictMessageTypeResolver` throws on
+  that rather than letting `DeserializerConsumerMiddleware` drop the message silently. So every run puts one
+  `TestMessage` on `common-dlq` under the `events-consumer` group, after that service has spent its full
+  production backoff (2s/4s/8s) retrying it. Expected noise, not a failure — but it is why the out-of-process
+  service looks busy for ~15s during a run, and why a test message can queue behind it on a shared worker.
+- A payload type with no registered handler is still harmless. `TypedHandlerMiddleware` invokes
+  `OnNoHandlerFound` (a no-op by default) and then always calls `next`. "No handler for this type" and "cannot
+  load this type" are different things: the first is ignored, the second is a defect and gets dead lettered.
 
 ## Layer 4 — the database
 
@@ -117,14 +124,15 @@ and it would strip the real service of the records it uses to recognise events i
 
 There is no routing. Each fixture member is hard-wired to one provider:
 
-| Member                          | Provider | Gives you                                            |
-|---------------------------------|----------|------------------------------------------------------|
-| `GetMessageProducer<T>()`       | #1       | `IMessageProducer<EventsService>`                     |
-| `GetMessageHandler<T>()`        | #1       | the NSubstitute `IMessageHandler<TestMessage>`        |
-| `WaitForDeadLetteredEvent()`    | #1       | a barrier: provider #2's pipeline gave up on an event |
-| `EventsConsumerServices`        | #2       | `IMeterFactory`, and anything else the pipeline has   |
-| `CreateEventsConsumerScope()`   | #2       | a scope to resolve `WeatherDbContext` from            |
-| `EventsConsumerGroupId`         | #2       | the value to filter inbox assertions by               |
+| Member                            | Provider | Gives you                                              |
+|-----------------------------------|----------|--------------------------------------------------------|
+| `GetMessageProducer<T>()`         | #1       | `IMessageProducer<EventsService>` / `<UnreadableEventProducer>` |
+| `GetMessageHandler<T>()`          | #1       | the NSubstitute `IMessageHandler<TestMessage>`          |
+| `WaitForDeadLetteredEvent()`      | #1       | a barrier: provider #2's pipeline gave up on an event   |
+| `WaitForUnreadableDeadLetter()`   | #1       | the same, for a message that never deserialized         |
+| `EventsConsumerServices`          | #2       | `IMeterFactory`, and anything else the pipeline has     |
+| `CreateEventsConsumerScope()`     | #2       | a scope to resolve `WeatherDbContext` from              |
+| `EventsConsumerGroupId`           | #2       | the value to filter inbox assertions by                 |
 
 Crossing them is normal. `WeatherDeduplicationMiddlewareShould` **produces** through provider #1 and
 **asserts** through provider #2's `WeatherDbContext`. Producing is just putting bytes on the topic; which
@@ -184,6 +192,39 @@ One asymmetry to know when a test like this goes red: a middleware that records 
 handler throwing makes the retry find the event already processed, skip the handler and succeed — so the event
 is never dead lettered and you get a barrier timeout rather than a failed `BeEmpty()`. `WaitForDeadLetteredEvent`
 throws a `TimeoutException` spelling that out.
+
+## Dead lettering a message that cannot be read
+
+`UnreadableMessageDeadLetteringShould` covers the two ways a message can be undeliverable before any handler is
+reached. Both used to end in silent data loss, and this is the only test in the suite that proves they no
+longer do — so if you are changing the consumer pipeline order, read this before you do.
+
+Three registration details make it work, and breaking any one of them turns both tests into a
+`WaitForUnreadableDeadLetter` timeout rather than a clear failure:
+
+1. **`RetryDeadLetterMiddleware` is registered before — and so wraps — the deserializer.**
+   `DeserializerConsumerMiddleware` has no `try`/`catch`. With the deserializer outermost, a malformed payload
+   throws past retry/DLQ into `ConsumerWorker.ProcessMessageAsync`, which logs the exception, swallows it, and
+   its `finally` stores the offset anyway. No retry, no dead letter, message gone.
+2. **The deserializer uses `StrictMessageTypeResolver`, not KafkaFlow's `DefaultTypeResolver`.** The default
+   returns `null` when `Message-Type` is missing or names an unloadable type, and the deserializer answers
+   `null` with a bare `return` — no handler, no exception, no log, no `MessageConsumeError` event, offset
+   stored. Quieter than a malformed payload, which at least throws.
+3. **The DLQ producer has no serializer middleware.** Sitting outside the deserializer,
+   `RetryDeadLetterMiddleware` only ever holds raw bytes (`DeserializerConsumerMiddleware` passes the
+   deserialized value inward on a *new* `IMessageContext`), so it forwards the original bytes, key and headers
+   with one header added. A `JsonCoreSerializer` on that producer would base64 the bytes into a JSON string and
+   overwrite `Message-Type` with `System.Byte[]`.
+
+Consequence for observing them: a poison dead letter cannot reach a typed handler either, so
+`DeadLetterRecorder` and `DeadLetteredFailingEventMessageHandler` are no use.
+`UnreadableDeadLetterRecordingMiddleware` sits *before* the deserializer on the fixture's `common-dlq`
+consumer and records raw bytes into `UnreadableDeadLetterRecorder`, keyed by `(consumer group, payload
+string)`. Keying on the exact payload is deliberate: it makes the wait itself an assertion that the bytes
+round-tripped untouched.
+
+Producing them needs `GetMessageProducer<UnreadableEventProducer>()` — provider #1's serializer-free producer,
+which takes a `byte[]` and puts it on `common` verbatim.
 
 ## Cancellation tokens
 

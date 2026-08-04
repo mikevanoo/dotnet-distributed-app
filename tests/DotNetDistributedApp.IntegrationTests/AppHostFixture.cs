@@ -175,6 +175,7 @@ public class AppHostFixture : IAsyncLifetime
             .AddLogging()
             .AddSingleton(Substitute.For<IMessageHandler<TestMessage>>())
             .AddSingleton<DeadLetterRecorder>()
+            .AddSingleton<UnreadableDeadLetterRecorder>()
             .AddKafka(kafka =>
                 kafka
                     .UseMicrosoftLog()
@@ -201,6 +202,15 @@ public class AppHostFixture : IAsyncLifetime
                                     .AddMiddlewares(m => m.AddSerializer<JsonCoreSerializer>())
                             )
                             /*
+                             * No serializer middleware, so ProduceAsync takes a byte[] and puts it on the topic
+                             * verbatim. That is the only way to produce a message the consumer cannot read - a missing
+                             * Message-Type header, or a body that is not valid JSON - which is what
+                             * UnreadableMessageDeadLetteringShould needs.
+                             */
+                            .AddProducer<UnreadableEventProducer>(producer =>
+                                producer.DefaultTopic(Topics.Common).WithAcks(Acks.All)
+                            )
+                            /*
                              * Observes the dead letter topic so a test can await an event reaching it. Nothing else
                              * consumes common-dlq, and the events-consumer pipeline must not: it would deserialize its
                              * own dead letters back off the topic and fail them all over again.
@@ -220,13 +230,17 @@ public class AppHostFixture : IAsyncLifetime
                                     .WithConsumerConfig(
                                         new ConsumerConfig
                                         {
-                                            EnableAutoCommit = false, // Disable auto-commit; let KafkaFlow commit after success
+                                            // EnableAutoCommit is not set: ConsumerConfigurationBuilder.Build overwrites it regardless. KafkaFlow owns committing.
                                             MaxPollIntervalMs = 300000, // Max processing time (5 mins) before broker assumes consumer is dead
                                             SessionTimeoutMs = 10000, // Time before broker detects a silent consumer crash
                                         }
                                     )
                                     .AddMiddlewares(middlewares =>
                                         middlewares
+                                            // Before the deserializer on purpose: a dead letter whose Message-Type
+                                            // header is missing or whose body is malformed never gets past it, and
+                                            // those are exactly the messages UnreadableDeadLetterRecorder exists for.
+                                            .Add<UnreadableDeadLetterRecordingMiddleware>()
                                             .AddDeserializer<JsonCoreDeserializer>()
                                             .AddTypedHandlers(x =>
                                                 x.AddHandler<DeadLetteredFailingEventMessageHandler>()
@@ -243,7 +257,7 @@ public class AppHostFixture : IAsyncLifetime
                                     .WithConsumerConfig(
                                         new ConsumerConfig
                                         {
-                                            EnableAutoCommit = false, // Disable auto-commit; let KafkaFlow commit after success
+                                            // EnableAutoCommit is not set: ConsumerConfigurationBuilder.Build overwrites it regardless. KafkaFlow owns committing.
                                             MaxPollIntervalMs = 300000, // Max processing time (5 mins) before broker assumes consumer is dead
                                             SessionTimeoutMs = 10000, // Time before broker detects a silent consumer crash
                                         }
@@ -344,6 +358,46 @@ public class AppHostFixture : IAsyncLifetime
                 inbox row despite the handler throwing, the retry finds the event already processed, skips the handler,
                 and succeeds. The event is then never dead lettered, so this barrier times out instead of the emptiness
                 assertion failing.
+                """,
+                exception
+            );
+        }
+    }
+
+    /// <summary>
+    /// Completes once the in-process events consumer pipeline has dead lettered a message it could not deserialize,
+    /// returning the headers the dead letter carried. Matched on the exact payload bytes, which only works because
+    /// <see cref="RetryDeadLetterMiddleware"/> forwards the original message untouched.
+    /// </summary>
+    /// <remarks>
+    /// Filtered by consumer group for the same reason as <see cref="WaitForDeadLetteredEvent"/>: the out-of-process
+    /// <c>events-consumer</c> service dead letters its own copy of the same message and can get there first.
+    /// </remarks>
+    public async Task<IMessageHeaders> WaitForUnreadableDeadLetter(string payload, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await _kafkaServiceProvider
+                .GetRequiredService<UnreadableDeadLetterRecorder>()
+                .WaitFor(EventsConsumerGroupId, payload, cancellationToken);
+        }
+        catch (OperationCanceledException exception)
+            when (!TestContext.Current.CancellationToken.IsCancellationRequested)
+        {
+            throw new TimeoutException(
+                $"""
+                Timed out waiting for an unreadable message to reach {Topics.CommonDlq} under consumer group
+                {EventsConsumerGroupId}.
+
+                This is the failure mode the pipeline order exists to prevent. If RetryDeadLetterMiddleware is
+                registered inside the deserializer rather than outside it, a message that fails to deserialize throws
+                past retry/DLQ into KafkaFlow's ConsumerWorker, which logs it, swallows it, and stores the offset
+                anyway - so nothing ever arrives here. The same happens if the deserializer resolves message types with
+                KafkaFlow's DefaultTypeResolver instead of StrictMessageTypeResolver, which returns null for an
+                unreadable Message-Type header and is answered with a bare return.
+
+                A payload mismatch would also time out: the dead letter must be the original bytes, so re-serializing
+                the message on the way to the DLQ - by giving the DLQ producer a serializer middleware - breaks this.
                 """,
                 exception
             );

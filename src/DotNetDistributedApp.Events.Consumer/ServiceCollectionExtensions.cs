@@ -42,6 +42,10 @@ public static class ServiceCollectionExtensions
                     .WithBrokers([kafkaConnectionString])
                     .CreateTopicIfNotExists(Topics.Common, 1, 1)
                     .CreateTopicIfNotExists(Topics.CommonDlq, 1, 1)
+                    // Deliberately has NO serializer middleware. RetryDeadLetterMiddleware sits outside the
+                    // deserializer, so it hands this producer the raw bytes it received; KafkaFlow produces a byte[]
+                    // value as-is. A JsonCoreSerializer here would base64 the bytes into a JSON string and overwrite
+                    // the Message-Type header with System.Byte[], making every dead letter unreadable.
                     .AddProducer<DlqProducer>(producer =>
                         producer
                             .DefaultTopic(Topics.CommonDlq)
@@ -57,7 +61,6 @@ public static class ServiceCollectionExtensions
                                     CompressionType = CompressionType.Lz4, // Compress batches to save bandwidth
                                 }
                             )
-                            .AddMiddlewares(m => m.AddSerializer<JsonCoreSerializer>())
                     )
                     .AddConsumer(consumer =>
                     {
@@ -67,18 +70,30 @@ public static class ServiceCollectionExtensions
                             .WithBufferSize(100) // In-memory buffer size per worker
                             .WithWorkersCount(3) // Number of concurrent processing threads
                             .WithAutoOffsetReset(AutoOffsetReset.Earliest) // Start from beginning if no offset exists
+                            // EnableAutoCommit, EnableAutoOffsetStore and AutoCommitIntervalMs are deliberately absent:
+                            // ConsumerConfigurationBuilder.Build overwrites all three whatever is set here. KafkaFlow
+                            // owns committing - ConsumerContext.Complete() records the offset in KafkaFlow's own
+                            // OffsetManager and its OffsetCommitter commits on a timer. WithAutoCommitIntervalMs is the
+                            // only knob that moves that window (default 5s), and the window is why a crash redelivers
+                            // messages that were already fully processed - the case the deduplication inbox exists for.
                             .WithConsumerConfig(
                                 new ConsumerConfig
                                 {
-                                    EnableAutoCommit = false, // Disable auto-commit; let KafkaFlow commit after success
                                     MaxPollIntervalMs = 300000, // Max processing time (5 mins) before broker assumes consumer is dead
                                     SessionTimeoutMs = 10000, // Time before broker detects a silent consumer crash
                                 }
                             )
                             .AddMiddlewares(middlewares =>
                                 middlewares
-                                    .AddDeserializer<JsonCoreDeserializer>()
+                                    // Outermost, and deliberately OUTSIDE the deserializer. DeserializerConsumerMiddleware
+                                    // does not catch, so with the order reversed a payload that fails to deserialize threw
+                                    // straight past retry/DLQ into ConsumerWorker.ProcessMessageAsync, which logs it,
+                                    // swallows it, and stores the offset anyway - no retry, no dead letter, message gone.
                                     .Add<RetryDeadLetterMiddleware>()
+                                    // StrictMessageTypeResolver rather than KafkaFlow's default: the default returns null
+                                    // for a missing or unloadable Message-Type header, and the deserializer answers null by
+                                    // returning without calling next - dropping the message with no exception and no log.
+                                    .AddDeserializer<JsonCoreDeserializer, StrictMessageTypeResolver>()
                                     // MiddlewareLifetime.Message is required so that each worker gets their own WeatherDbContext (thread-safety)
                                     // and this also lets the middleware and handlers share the middlewares DB transaction
                                     .Add<WeatherDeduplicationMiddleware>(MiddlewareLifetime.Message)

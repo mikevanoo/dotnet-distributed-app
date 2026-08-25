@@ -6,6 +6,7 @@ public class WeatherDbContext(DbContextOptions<WeatherDbContext> options) : DbCo
 {
     public DbSet<WeatherStation> WeatherStations { get; set; }
     public DbSet<WeatherStationHistoricData> WeatherStationHistoricData { get; set; }
+    public DbSet<ProcessedWeatherEvent> ProcessedWeatherEvents { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -13,6 +14,7 @@ public class WeatherDbContext(DbContextOptions<WeatherDbContext> options) : DbCo
 
         CreateWeatherStations(modelBuilder);
         CreateWeatherStationHistoricData(modelBuilder);
+        CreateProcessedWeatherEvents(modelBuilder);
     }
 
     private static void CreateWeatherStations(ModelBuilder modelBuilder)
@@ -39,5 +41,13 @@ public class WeatherDbContext(DbContextOptions<WeatherDbContext> options) : DbCo
 
         entity.HasData(WeatherStationSeedData.GetWeatherStationHistoricDataHeathrow());
         entity.HasData(WeatherStationSeedData.GetWeatherStationHistoricDataStornoway());
+    }
+
+    private static void CreateProcessedWeatherEvents(ModelBuilder modelBuilder)
+    {
+        var entity = modelBuilder.Entity<ProcessedWeatherEvent>();
+
+        entity.HasKey(x => new { x.Id, x.ConsumerGroup });
+        entity.HasIndex(x => new { x.EventName, x.ProcessedAtUtc });
     }
 }

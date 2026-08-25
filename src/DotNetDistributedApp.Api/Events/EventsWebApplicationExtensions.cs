@@ -28,6 +28,16 @@ public static class EventsWebApplicationExtensions
                 await eventsService.SendEvent(Topics.Common, new FailingEventPayloadDto(Guid.NewGuid().ToString()))
         );
 
+        v1v2.MapPost(
+            "/duplicate-event",
+            async ([FromBody] [Required] SimpleEventRequest body, [FromServices] IEventsService eventsService) =>
+            {
+                var payload = new SimpleEventPayloadDto(Guid.NewGuid().ToString(), body.Value);
+                await eventsService.SendEvent(Topics.Common, payload);
+                await eventsService.SendEvent(Topics.Common, payload);
+            }
+        );
+
         return webApplication;
     }
 }

@@ -10,7 +10,7 @@ public class WeatherStationsShould(AppHostFixture appHostFixture)
     {
         var httpClient = appHostFixture.App.CreateHttpClient(ResourceNames.Api);
 
-        var response = await httpClient.GetAsync("/v1.0/weather/stations", AppHostFixture.CreateCancellationToken());
+        var response = await httpClient.GetAsync("/v1.0/weather/stations", TestContext.Current.CancellationToken);
 
         response
             .Should()
@@ -23,7 +23,7 @@ public class WeatherStationsShould(AppHostFixture appHostFixture)
     {
         var httpClient = appHostFixture.App.CreateHttpClient(ResourceNames.Api);
 
-        var response = await httpClient.GetAsync("/v1.0/weather/stations", AppHostFixture.CreateCancellationToken());
+        var response = await httpClient.GetAsync("/v1.0/weather/stations", TestContext.Current.CancellationToken);
 
         response
             .Should()
@@ -42,7 +42,7 @@ public class WeatherStationsShould(AppHostFixture appHostFixture)
 
         var response = await httpClient.GetAsync(
             "/weather/stations/unknown-station/historic-data",
-            AppHostFixture.CreateCancellationToken()
+            TestContext.Current.CancellationToken
         );
 
         response.Should().Be404NotFound();
@@ -55,7 +55,7 @@ public class WeatherStationsShould(AppHostFixture appHostFixture)
 
         var response = await httpClient.GetAsync(
             "/v1.0/weather/stations/heathrow/historic-data",
-            AppHostFixture.CreateCancellationToken()
+            TestContext.Current.CancellationToken
         );
 
         response

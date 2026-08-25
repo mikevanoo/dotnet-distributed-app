@@ -3,6 +3,7 @@ using System;
 using DotNetDistributedApp.Api.Data.Weather;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace DotNetDistributedApp.Api.Data.Migrations
 {
     [DbContext(typeof(WeatherDbContext))]
-    partial class WeatherDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260727095705_AddProcessedWeatherEventsInbox")]
+    partial class AddProcessedWeatherEventsInbox
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -25,10 +28,12 @@ namespace DotNetDistributedApp.Api.Data.Migrations
             modelBuilder.Entity("DotNetDistributedApp.Api.Data.Weather.ProcessedWeatherEvent", b =>
                 {
                     b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
                     b.Property<string>("ConsumerGroup")
+                        .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("consumer_group");
 
@@ -59,7 +64,7 @@ namespace DotNetDistributedApp.Api.Data.Migrations
                         .HasColumnType("text")
                         .HasColumnName("topic");
 
-                    b.HasKey("Id", "ConsumerGroup")
+                    b.HasKey("Id")
                         .HasName("pk_processed_weather_events");
 
                     b.HasIndex("EventName", "ProcessedAtUtc")

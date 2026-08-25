@@ -40,6 +40,21 @@ public class WeatherDeduplicationMiddlewareShould(AppHostFixture appHostFixture)
         row.EventName.Should().Be(payload.EventName);
         row.Topic.Should().Be(Topics.Common);
         row.PartitionKey.Should().Be(payload.PartitionKey);
+        /*
+         * Read this as "no simple event was duplicated anywhere", not "this event was not duplicated". EventName is a
+         * constant on the payload type and the duplicate counter carries only topic and event_name, so the snapshot
+         * holds no way to tell one simple-event duplicate from another - the collector sees every measurement the
+         * in-process pipeline records while it is open.
+         *
+         * Two facts about the suite, not this test, are what keep that honest: xUnit runs a class's methods serially,
+         * so the duplicate test below cannot bleed into this collector, and nothing else in the assembly produces a
+         * SimpleEventPayloadDto. Add a second simple-event producer and this assertion starts failing for reasons that
+         * have nothing to do with the event it names.
+         *
+         * Unlike its Contain counterpart below, this one needs no barrier. Reading the snapshot at the earliest
+         * possible moment is when a stray measurement is least likely to have arrived, so the timing that made the
+         * duplicate test flaky biases this one towards passing instead.
+         */
         duplicateMetrics
             .GetMeasurementSnapshot()
             .Should()
@@ -53,6 +68,18 @@ public class WeatherDeduplicationMiddlewareShould(AppHostFixture appHostFixture)
     public async Task RecordSingleProcessedEventRowWithDuplicateMetricForDuplicateEventsConsumed()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
+        /*
+         * The inbox row is not a barrier for the duplicate metric, and the wait below is the one that is.
+         *
+         * The row appears when the FIRST delivery commits; the metric is only recorded when the SECOND reaches
+         * WeatherDeduplicationMiddleware and is skipped. So "exactly one row exists" is satisfied in the gap between
+         * the two deliveries, and reading the snapshot there sees nothing. The gap is normally sub-millisecond - the
+         * consumer takes the second message off its buffer while this test is still running its row assertions - which
+         * is why it survives locally and failed on CI.
+         *
+         * WaitForMeasurementsAsync awaits a signal rather than a bounded round trip, so it gets a deadline.
+         */
+        using var deadline = AppHostFixture.CreateDeadline();
         var payload = new SimpleEventPayloadDto(Guid.NewGuid().ToString(), "processed-event-probe");
         using var duplicateMetrics = new MetricCollector<int>(
             appHostFixture.EventsConsumerServices.GetRequiredService<IMeterFactory>(),
@@ -77,6 +104,9 @@ public class WeatherDeduplicationMiddlewareShould(AppHostFixture appHostFixture)
         row.EventName.Should().Be(payload.EventName);
         row.Topic.Should().Be(Topics.Common);
         row.PartitionKey.Should().Be(payload.PartitionKey);
+
+        await duplicateMetrics.WaitForMeasurementsAsync(1, deadline.Token);
+
         duplicateMetrics
             .GetMeasurementSnapshot()
             .Should()

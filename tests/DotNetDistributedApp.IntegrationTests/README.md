@@ -58,12 +58,16 @@ _kafkaServiceProvider ──CreateKafkaBus()──▶ _kafkaBus
 _eventsConsumerServiceProvider ──CreateKafkaBus()──▶ _eventsConsumerKafkaBus
   AddProducer<DlqProducer>    → common-dlq      (IMessageProducer<DlqProducer>, no serializer)
   AddConsumer  group "integration-tests-events-consumer-{guid}"
-    RetryDeadLetter → deserializer → WeatherDeduplication → typed handlers
+    RetryDeadLetter → deserializer → ConsumerMetrics → WeatherDeduplication → typed handlers
   + WeatherDbContext, IMetricsService, IMeterFactory
 ```
 
 Note the retry middleware is **outside** the deserializer, and the DLQ producer has **no serializer**. Both are
 load-bearing: see [Dead lettering a message that cannot be read](#dead-lettering-a-message-that-cannot-be-read).
+`ConsumerMetrics` is equally pinned — inside the deserializer so its counters can read `event_name`, inside the
+retry middleware so a dead-lettered message is not counted a success, and outside `WeatherDeduplication` because
+it owns the "not a `BaseEventPayloadDto`" short circuit that lets the deduplication middleware cast the value.
+`AGENTS.md` → *Kafka Consumer Metrics (Constraints)* has the detail.
 
 Both buses are started by hand (`CreateKafkaBus().StartAsync()`). `AddKafkaFlowHostedService` registers an
 `IHostedService` that would normally do it, but nothing runs hosted services in a bare container. Both are
@@ -109,13 +113,25 @@ completes; see the comment block in `ConfigureKafkaServices`).
 Both real pipelines write to the same `processed_weather_events` table. `ProcessedWeatherEvent` is keyed on
 `(Id, ConsumerGroup)`, so the same `EventId` seen by two groups is two distinct rows.
 
+**There is a third participant, and it does not write — it deletes.** The AppHost also runs the real
+`scheduled-tasks` service, whose `ProcessedWeatherEventsCleaner` fires on a **one-minute cron** with a one-day
+`DefaultRetention` and a seven-day override for `failing-event`. It is not scoped to a consumer group: its
+catch-all predicate is `!overriddenEventNames.Contains(e.EventName)` with no group filter, so it deletes across
+every group, including the fixture's. That is the thing to suspect when a row a test seeded has vanished for no
+reason the test can see. Two rules follow:
+
+- **Never seed a row older than production's `DefaultRetention`.** Ten minutes old is aged enough for a
+  five-minute test retention and far too young for the production cleaner to touch.
+- **Never give a test a short `DefaultRetention` without fencing the catch-all.** See
+  [Testing the cleanup job](#testing-the-cleanup-job).
+
 > **Scope every inbox assertion to `AppHostFixture.EventsConsumerGroupId`.**
 >
 > This is the one rule you can break and still get a passing test today. Postgres has a data volume, so rows
 > outlive the run that wrote them, and the real `events-consumer` is writing its own rows the whole time.
 > Unscoped queries will eventually see both.
 
-`AppHostFixture.PurgeEventsConsumerInboxRows` deletes the fixture's own group's rows at dispose, after the
+`AppHostFixture.PurgeProcessedWeatherEvents` deletes the fixture's own group's rows at dispose, after the
 in-process bus has stopped. It is deliberately **not** a before-each clear: test classes run in parallel
 (nothing disables xUnit's default), so a broader delete would remove rows another class is still waiting on,
 and it would strip the real service of the records it uses to recognise events it has already handled.
@@ -225,6 +241,41 @@ round-tripped untouched.
 
 Producing them needs `GetMessageProducer<UnreadableEventProducer>()` — provider #1's serializer-free producer,
 which takes a `byte[]` and puts it on `common` verbatim.
+
+## Testing the cleanup job
+
+`ProcessedWeatherEventsCleanerShould` is the odd one out in this project, in two ways worth knowing before you
+add to it.
+
+**It needs no polling and no barrier.** Every other events-consumer test observes an asynchronous pipeline. This
+one constructs `ProcessedWeatherEventsCleaner` directly — `Options.Create(...)` plus NSubstitute, no DI
+container — and awaits `Invoke()` itself, so the deletes are complete when it returns. Do not reach for
+`NotThrowAfterAsync`, and note that [Asserting an absence](#asserting-an-absence) does not apply here for the same
+reason: the absence is already final.
+
+**It is testing a destructive path against a shared table**, which is what shapes the rest. The cleaner deletes
+from the inbox the exactly-once claim rests on, and the failure it exists to catch — an inverted comparison that
+deletes live rows instead of aged ones — is exactly the failure that a carelessly-scoped test causes itself.
+`ExecuteDeleteAsync` has no in-memory provider, so this has to run against real Postgres.
+
+Three things keep it deterministic, and all three are load-bearing:
+
+1. **A unique event name per test** (`$"test-event-{Guid.NewGuid()}"`, a field, so xUnit's one-instance-per-test
+   gives each test its own). That is what makes a deleted *count* assertable.
+2. **Rows seeded ten minutes old, never older.** Young enough that the production cleaner described in
+   [Layer 4](#layer-4--the-database) will not race them, old enough for a five-minute test retention.
+3. **The catch-all fenced off.** The `DefaultRetention` test cannot scope its delete to its own rows, so a short
+   `DefaultRetention` would sweep other classes' rows. It defuses that by naming the suite's *real* event names
+   in `RetentionByEventName` with 365-day retentions — read off `new SimpleEventPayloadDto().EventName` and
+   `new FailingEventPayloadDto().EventName` rather than repeated string literals — which excludes them from the
+   catch-all and leaves only this test's unique name in reach. Its metric assertion still needs a
+   `count >= 1` matcher, because stale rows from an earlier run can be swept in the same call.
+
+The converse test sets `DefaultRetention` to 365 days so the catch-all provably touches nothing, and puts the
+unique event name in `RetentionByEventName` instead.
+
+`CancellationToken` on the cleaner is a settable `ICancellableInvocable` property, not a constructor parameter —
+Coravel assigns it. Without it the deletes under test run uncancellable.
 
 ## Cancellation tokens
 

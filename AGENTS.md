@@ -126,6 +126,16 @@ The inbox table doubles as an audit log, so it needs pruning. `ProcessedWeatherE
 - **Retention keys are the `EventName` values from the payload DTOs** (e.g. `simple-event`, `failing-event`), matched case-sensitively in SQL. A key that does not match an `EventName` silently falls into the `DefaultRetention` catch-all rather than failing.
 - **The cleaner is not scoped to a consumer group.** It deletes across every group, so the `scheduled-tasks` service running during an integration test run is deleting from the same table the tests assert on. Keep retention windows in a test far longer than the rows it seeds.
 
+### Kafka Consumer Metrics (Constraints)
+
+`ConsumerMetricsMiddleware` records `events.consume_success`, `events.consume_failed` and `events.consume_unrecognised`. It is registered between `AddDeserializer` and `WeatherDeduplicationMiddleware` because that is the only position satisfying all three constraints below, and both halves of it are guarded by `EventsConsumerRegistrationShould`.
+
+- **Inside the deserializer.** All three counters are tagged `event_name`, which only exists on a deserialized payload. Registered outside it, `context.Message.Value` is raw bytes before *and* after `next` returns.
+- **Inside `RetryDeadLetterMiddleware`.** That middleware swallows the exception once it has successfully dead lettered a message, so a counter outside it records a poison message as a success.
+- **Outside `WeatherDeduplicationMiddleware`.** This middleware owns the "not a `BaseEventPayloadDto`" decision and short-circuits those messages, which is what lets the deduplication middleware *cast* `context.Message.Value` rather than re-check it. Swap the two and every unrecognised message becomes an `InvalidCastException` that burns the retry backoff before being dead lettered.
+
+`events.consume_failed` fires once per **attempt** (matching `LogMessageHandlingFailed`) and is the main *metric* signal that a handler failed, since the worker swallows the exception. It cannot see a deserialization failure — that happens outside it — but those are dead lettered rather than dropped, so the DLQ is the signal for them. A duplicate skipped by the inbox counts as a **success**: it was consumed without error, and `events.consume_duplicate` is the orthogonal dimension.
+
 ### Patterns NOT Used (Never Suggest)
 
 - Repository pattern - use EF Core `DbContext` directly
@@ -253,3 +263,4 @@ Integration tests use `Aspire.Hosting.Testing` to spin up the full `AppHost` wit
 - Run integration tests as part of quick feedback loops (they require Docker and are slow)
 - Register a second `IMessageHandler<T>` for a payload type that already has one, or register message handlers without `WithHandlerLifetime(InstanceLifetime.Scoped)` - see [Kafka Consumer Idempotency (Constraints)](#kafka-consumer-idempotency-constraints)
 - Reorder the consumer middlewares so the deserializer wraps `RetryDeadLetterMiddleware`, add a serializer to the DLQ producer, or swap `StrictMessageTypeResolver` back to KafkaFlow's default - each one silently loses messages, see [Kafka Consumer Data Loss (Constraints)](#kafka-consumer-data-loss-constraints)
+- Move `ConsumerMetricsMiddleware` outside the deserializer or inside `WeatherDeduplicationMiddleware` - the first makes its counters untaggable, the second breaks a cast, see [Kafka Consumer Metrics (Constraints)](#kafka-consumer-metrics-constraints)

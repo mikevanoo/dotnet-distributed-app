@@ -95,6 +95,48 @@ public class EventsConsumerRegistrationShould
     }
 
     [Fact]
+    public void RegisterTheMetricsMiddlewareInsideTheDeserializerSoOutcomesAreTaggedByEventName()
+    {
+        var services = new ServiceCollection().AddEventsConsumerKafka(BuildConfiguration());
+
+        var deserializerPosition = IndexOf(services, typeof(StrictMessageTypeResolver));
+        var metricsPosition = IndexOf(services, typeof(ConsumerMetricsMiddleware));
+
+        deserializerPosition
+            .Should()
+            .BeLessThan(
+                metricsPosition,
+                """
+                ConsumerMetricsMiddleware must be registered after the deserializer so it runs inside it. All three of
+                its counters are tagged by event_name, and that is only readable off a deserialized payload -
+                DeserializerConsumerMiddleware passes the deserialized value inward on a NEW IMessageContext, so a
+                middleware outside it sees raw bytes both before and after next returns.
+                """
+            );
+    }
+
+    [Fact]
+    public void RegisterTheMetricsMiddlewareOutsideTheDeduplicationMiddlewareSoItOwnsTheUnrecognisedPayloadDecision()
+    {
+        var services = new ServiceCollection().AddEventsConsumerKafka(BuildConfiguration());
+
+        var metricsPosition = IndexOf(services, typeof(ConsumerMetricsMiddleware));
+        var deduplicationPosition = IndexOf(services, typeof(WeatherDeduplicationMiddleware));
+
+        metricsPosition
+            .Should()
+            .BeLessThan(
+                deduplicationPosition,
+                """
+                ConsumerMetricsMiddleware short-circuits any message whose value is not a BaseEventPayloadDto, which is
+                what lets WeatherDeduplicationMiddleware cast the value rather than re-checking it. Reordering these two
+                turns that cast into an InvalidCastException on every unrecognised message, which the retry middleware
+                would then burn its backoff on before dead lettering.
+                """
+            );
+    }
+
+    [Fact]
     public void ResolveMessageTypesStrictlySoAnUnreadableHeaderCannotBeDroppedSilently()
     {
         var services = new ServiceCollection().AddEventsConsumerKafka(BuildConfiguration());

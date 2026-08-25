@@ -94,6 +94,12 @@ public static class ServiceCollectionExtensions
                                     // for a missing or unloadable Message-Type header, and the deserializer answers null by
                                     // returning without calling next - dropping the message with no exception and no log.
                                     .AddDeserializer<JsonCoreDeserializer, StrictMessageTypeResolver>()
+                                    // Inside the deserializer because its counters are tagged by event_name, which does
+                                    // not exist until the payload is deserialized; inside RetryDeadLetterMiddleware
+                                    // because that swallows the exception once it has dead lettered a message, so
+                                    // anything outside it would count a poison message as a success. It also owns the
+                                    // "not a BaseEventPayloadDto" decision for everything further in.
+                                    .Add<ConsumerMetricsMiddleware>()
                                     // MiddlewareLifetime.Message is required so that each worker gets their own WeatherDbContext (thread-safety)
                                     // and this also lets the middleware and handlers share the middlewares DB transaction
                                     .Add<WeatherDeduplicationMiddleware>(MiddlewareLifetime.Message)

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using Aspire.Hosting;
 using Confluent.Kafka;
@@ -54,6 +55,27 @@ public class AppHostFixture : IAsyncLifetime
 {
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(60);
 
+    /*
+     * Startup gets a budget per stage instead of one deadline spanning all of them, and the reason is the error
+     * message. A single token started before the first stage is usually the thing that trips, wherever the run
+     * actually got stuck, and a tripped token surfaces as `TaskCanceledException: A task was canceled.` - no stage,
+     * no elapsed time, nothing about which container never came up. RunStartupStage below is what turns each of
+     * these into a sentence.
+     *
+     * The numbers are sized for a cold Docker: the first run of the day pulls the Postgres, Kafka, Valkey and GeoIP
+     * images before anything can start. On a healthy run nothing waits on them, so generous costs nothing.
+     */
+    private static readonly TimeSpan AppHostCreateTimeout = TimeSpan.FromSeconds(60);
+    private static readonly TimeSpan AppHostBuildTimeout = TimeSpan.FromSeconds(60);
+    private static readonly TimeSpan AppHostStartTimeout = TimeSpan.FromMinutes(3);
+    private static readonly TimeSpan ResourceHealthyTimeout = TimeSpan.FromMinutes(3);
+    private static readonly TimeSpan KafkaBusStartTimeout = TimeSpan.FromSeconds(90);
+
+    /// <summary>
+    /// How long <see cref="DescribeResourceStates"/> drains the notification stream for. Failure path only.
+    /// </summary>
+    private static readonly TimeSpan ResourceStateDrainTimeout = TimeSpan.FromSeconds(5);
+
     public DistributedApplication App { get; private set; } = null!;
     private ServiceProvider _kafkaServiceProvider = null!;
     private IKafkaBus _kafkaBus = null!;
@@ -81,9 +103,15 @@ public class AppHostFixture : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
-        var cancellationToken = CreateCancellationToken();
-        var appHost = await DistributedApplicationTestingBuilder.CreateAsync<Projects.DotNetDistributedApp_AppHost>(
-            cancellationToken
+        var appHost = await RunStartupStage(
+            "Creating the AppHost app model",
+            AppHostCreateTimeout,
+            DistributedApplicationTestingBuilder.CreateAsync<Projects.DotNetDistributedApp_AppHost>,
+            """
+            Nothing has touched Docker yet - this stage only builds the app model in process. A timeout here points at
+            the AppHost project rather than at infrastructure: a resource whose configuration blocks (a parameter with
+            no value, so Aspire waits for a prompt that never comes), or a hang resolving the AppHost assembly.
+            """
         );
         appHost.Services.AddLogging(logging =>
         {
@@ -98,15 +126,70 @@ public class AppHostFixture : IAsyncLifetime
             clientBuilder.AddStandardResilienceHandler();
         });
 
-        App = await appHost.BuildAsync(cancellationToken).WaitAsync(DefaultTimeout, cancellationToken);
-        await App.StartAsync(cancellationToken).WaitAsync(DefaultTimeout, cancellationToken);
+        App = await RunStartupStage(
+            "Building the AppHost",
+            AppHostBuildTimeout,
+            appHost.BuildAsync,
+            """
+            Still no containers: this builds the DI container and the resource graph. A timeout here is a hang inside
+            AppHost.cs - most likely an eventing callback (BeforeStartEvent and friends) that never returns.
+            """
+        );
 
-        await App
-            .ResourceNotifications.WaitForResourceHealthyAsync(ResourceNames.Api, cancellationToken)
-            .WaitAsync(DefaultTimeout, cancellationToken);
+        await RunStartupStage(
+            "Starting the AppHost resources",
+            AppHostStartTimeout,
+            App.StartAsync,
+            """
+            This is where the Docker work happens: every container and project resource is created. The usual causes
+            are environmental rather than anything in this repository.
 
-        await ConfigureKafkaServices(cancellationToken);
-        await ConfigureEventsConsumerServices(cancellationToken);
+              - The Docker daemon is not running, or is still starting. Aspire retries rather than failing fast, so a
+                stopped daemon reaches you as this timeout and not as a connection error. Check `docker info`.
+              - A cold image cache. The first pull of Postgres, Kafka, Valkey and GeoIP can outrun the budget above on
+                a slow connection; a re-run usually succeeds because the images are local by then.
+              - A port already bound, most often by containers left behind by an aborted run: `docker ps`.
+            """
+        );
+
+        await RunStartupStage(
+            $"Waiting for {ResourceNames.Api} to become healthy",
+            ResourceHealthyTimeout,
+            token => App.ResourceNotifications.WaitForResourceHealthyAsync(ResourceNames.Api, token),
+            $"""
+            {ResourceNames.Api} is deliberately the last resource to become healthy: it waits for the database,
+            then for the migration service to run to *completion*, then for spatial-api, geoip, the cache and kafka.
+            Any one of those stuck leaves it in Waiting indefinitely, so read the resource states below before
+            assuming the API itself is at fault - a migration service still in Running has not finished, and one in
+            FailedToStart (usually a migration that throws) means this wait can never complete.
+            """
+        );
+
+        await RunStartupStage(
+            "Starting the test Kafka bus",
+            KafkaBusStartTimeout,
+            ConfigureKafkaServices,
+            $"""
+            The producer and mock-handler bus (provider #1). It creates the {Topics.Common} and {Topics.CommonDlq}
+            topics and joins two consumer groups, so it is the first stage that needs the broker to accept connections
+            rather than merely be running. A container that is up but whose advertised listener is unreachable from the
+            test process fails exactly here.
+            """
+        );
+
+        await RunStartupStage(
+            "Starting the in-process events consumer pipeline",
+            KafkaBusStartTimeout,
+            ConfigureEventsConsumerServices,
+            """
+            The real AddEventsConsumerKafka pipeline (provider #2). It needs Kafka *and* the Postgres database for the
+            deduplication inbox, and it is the first stage to open a database connection from the test process - so a
+            database that accepted the migration service but not this connection string shows up here.
+
+            This stage can also fail without timing out: its provider validates scopes and validates on build, so a
+            handler registered singleton throws an InvalidOperationException naming the offending service instead.
+            """
+        );
     }
 
     /// <summary>
@@ -137,14 +220,151 @@ public class AppHostFixture : IAsyncLifetime
         return deadline;
     }
 
+    /*
+     * Runs one startup stage under its own deadline and turns a timeout into a message that names the stage.
+     *
+     * The token goes to the operation AND to WaitAsync on purpose: the token covers an operation that observes
+     * cancellation, the WaitAsync timeout covers one that does not - which is what the `.WaitAsync(DefaultTimeout, …)`
+     * calls this replaced were guarding against.
+     */
+    private async Task<T> RunStartupStage<T>(
+        string stage,
+        TimeSpan timeout,
+        Func<CancellationToken, Task<T>> operation,
+        string diagnosis
+    )
+    {
+        using var deadline = new CancellationTokenSource(timeout);
+        var startedAt = Stopwatch.GetTimestamp();
+
+        try
+        {
+            return await operation(deadline.Token).WaitAsync(timeout, deadline.Token);
+        }
+        catch (Exception exception)
+            when (exception is TimeoutException
+                || (exception is OperationCanceledException && deadline.IsCancellationRequested)
+            )
+        {
+            throw new TimeoutException(await DescribeStartupTimeout(stage, timeout, startedAt, diagnosis), exception);
+        }
+    }
+
+    private async Task RunStartupStage(
+        string stage,
+        TimeSpan timeout,
+        Func<CancellationToken, Task> operation,
+        string diagnosis
+    ) =>
+        await RunStartupStage<object?>(
+            stage,
+            timeout,
+            async token =>
+            {
+                await operation(token);
+
+                return null;
+            },
+            diagnosis
+        );
+
+    private Task RunStartupStage(
+        string stage,
+        TimeSpan timeout,
+        Func<CancellationToken, ValueTask> operation,
+        string diagnosis
+    ) => RunStartupStage(stage, timeout, token => operation(token).AsTask(), diagnosis);
+
+    private async Task<string> DescribeStartupTimeout(
+        string stage,
+        TimeSpan timeout,
+        long startedAt,
+        string diagnosis
+    ) =>
+        $"""
+            The integration test AppHost never finished starting, so every test in this assembly is reported as failed.
+
+            Stage:   {stage}
+            Gave up: after {Stopwatch.GetElapsedTime(startedAt).TotalSeconds:F1}s (budget {timeout.TotalSeconds:F0}s)
+
+            {diagnosis}
+
+            Resource states when the deadline expired:
+            {await DescribeResourceStates()}
+
+            Aspire's own logs carry the detail this message cannot: the fixture raises the AppHost to Debug, so the failed
+            stage is usually explained a few lines above this exception in the test output.
+            """;
+
+    /*
+     * The states the Aspire dashboard would be showing, for a message that has to stand in for it. WatchAsync replays
+     * the latest snapshot it holds for every resource before it starts streaming - the same replay that lets
+     * WaitForResourceHealthyAsync return for a resource that is already healthy - so a brief drain is enough.
+     */
+    private async Task<string> DescribeResourceStates()
+    {
+        if (App is null)
+        {
+            return "  (the AppHost does not exist yet, so it has no resources)";
+        }
+
+        using var deadline = new CancellationTokenSource(ResourceStateDrainTimeout);
+        var states = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        try
+        {
+            await foreach (var resourceEvent in App.ResourceNotifications.WatchAsync(deadline.Token))
+            {
+                var health = resourceEvent.Snapshot.HealthStatus is { } healthStatus
+                    ? $", health {healthStatus}"
+                    : string.Empty;
+                states[resourceEvent.ResourceId] = $"{resourceEvent.Snapshot.State?.Text ?? "(no state)"}{health}";
+            }
+        }
+        // The drain always ends this way: the stream only completes when the application shuts down.
+        catch (OperationCanceledException) { }
+
+        return states.Count == 0
+            ? "  (none reported - the resources were never started)"
+            : string.Join(
+                Environment.NewLine,
+                states.OrderBy(x => x.Key, StringComparer.Ordinal).Select(x => $"  {x.Key}: {x.Value}")
+            );
+    }
+
+    /*
+     * Every field here can still be null. A startup stage that times out leaves the fixture half-built, and each of
+     * these `null!` fields is only assigned by the stage that created it - so an unguarded teardown would throw a
+     * NullReferenceException over the top of the message that explains what actually went wrong.
+     */
     public async ValueTask DisposeAsync()
     {
-        await _eventsConsumerKafkaBus.StopAsync();
-        await PurgeProcessedWeatherEvents();
-        await _eventsConsumerServiceProvider.DisposeAsync();
-        await _kafkaBus.StopAsync();
-        await _kafkaServiceProvider.DisposeAsync();
-        await App.DisposeAsync();
+        if (_eventsConsumerKafkaBus is not null)
+        {
+            await _eventsConsumerKafkaBus.StopAsync();
+        }
+
+        if (_eventsConsumerServiceProvider is not null)
+        {
+            await PurgeProcessedWeatherEvents();
+            await _eventsConsumerServiceProvider.DisposeAsync();
+        }
+
+        if (_kafkaBus is not null)
+        {
+            await _kafkaBus.StopAsync();
+        }
+
+        if (_kafkaServiceProvider is not null)
+        {
+            await _kafkaServiceProvider.DisposeAsync();
+        }
+
+        if (App is not null)
+        {
+            await App.DisposeAsync();
+        }
+
         GC.SuppressFinalize(this);
     }
 

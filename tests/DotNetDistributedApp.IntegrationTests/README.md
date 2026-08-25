@@ -277,6 +277,32 @@ unique event name in `RetentionByEventName` instead.
 `CancellationToken` on the cleaner is a settable `ICancellableInvocable` property, not a constructor parameter —
 Coravel assigns it. Without it the deletes under test run uncancellable.
 
+## When startup times out
+
+Every test in the assembly failing with `Assembly fixture type 'AppHostFixture' threw in InitializeAsync` means
+one of `InitializeAsync`'s six stages ran out of time. It used to be reported as a bare
+`TaskCanceledException: A task was canceled.`, because a single 60s token created at the top of the method covered
+all of them and was usually the thing that tripped — wherever the run had actually got stuck.
+
+`RunStartupStage` replaced that with a budget per stage, and a `TimeoutException` that names the stage, how long it
+waited, and what tends to cause a timeout *there* — the app model and build stages cannot be Docker's fault, the
+start stage almost always is. It appends the state of every resource, which is the part worth reading first: it is
+what the Aspire dashboard would have shown you, and it distinguishes "nothing started" from "one container is
+stuck" from "the migration service failed and `api` will therefore never become healthy".
+
+Two things follow from the design.
+
+**The budgets are sized for a cold Docker, not for the warm loop.** The first run of the day pulls the Postgres,
+Kafka, Valkey and GeoIP images before anything can start, which is what made a 60s total budget flaky in the first
+place. A healthy run never waits on these numbers, so raising one costs nothing but a slower failure.
+
+**Each stage passes its token to the operation *and* to `WaitAsync`.** The token handles an operation that observes
+cancellation; the `WaitAsync` timeout handles one that does not. Aspire startup has both, so dropping either half
+turns some timeouts back into hangs.
+
+`DisposeAsync` is null-tolerant for the same reason: a stage that times out leaves later fields unassigned, and an
+unguarded teardown would bury the message under a `NullReferenceException`.
+
 ## Cancellation tokens
 
 Three options exist here and they are not interchangeable.

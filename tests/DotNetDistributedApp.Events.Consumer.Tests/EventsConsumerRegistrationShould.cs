@@ -61,7 +61,8 @@ public class EventsConsumerRegistrationShould
                         KafkaFlow's TypedHandlerMiddleware runs all handlers for a payload type concurrently via
                         Task.WhenAll, and handlers are scoped, so two handlers would share one WeatherDbContext in
                         parallel - which is not thread-safe. Either merge the handlers, or give the second one its
-                        own DbContext and reconsider the single-transaction guarantee in KAFKA-IDEMPOTENCY-PLAN.md.
+                        own DbContext and reconsider the single-transaction guarantee in
+                        docs/KAFKA-IDEMPOTENCY-PLAN.md.
                         """
                     )
             );

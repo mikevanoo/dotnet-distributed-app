@@ -74,6 +74,7 @@ tests/
 - `.config/dotnet-tools.json` - defines required .NET tools (CSharpier, NSwag, dotnet-coverage, reportgenerator). If tools aren't restored, lint and coverage commands fail.
 - `coverage.runsettings` - controls code coverage exclusions, referenced by the coverage command
 - `src/DotNetDistributedApp.ServiceDefaults/ResourceNames.cs` - shared constants for Aspire resource names used throughout AppHost
+- `docs/KAFKA-IDEMPOTENCY-PLAN.md` - the design record for the consumer's transactional inbox: the options considered, why the DB-backed one was chosen, and the KafkaFlow/EF Core behaviour each decision rests on. The constraints it produced are summarised in the sections above; read it when you need the reasoning rather than the rule.
 
 ## Architecture
 

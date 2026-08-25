@@ -16,10 +16,6 @@ public partial class WeatherDeduplicationMiddleware(
 {
     public async Task Invoke(IMessageContext context, MiddlewareDelegate next)
     {
-        // ConsumerMetricsMiddleware is registered directly outside this one and short-circuits any message whose value
-        // is not a BaseEventPayloadDto, so this cast cannot fail. It owns that decision because it is also the thing
-        // that counts events.consume_unrecognised. Pinned by
-        // EventsConsumerRegistrationShould.RegisterTheMetricsMiddlewareOutsideTheDeduplicationMiddlewareSoItOwnsTheUnrecognisedPayloadDecision.
         var payload = (BaseEventPayloadDto)context.Message.Value;
 
         var cancellationToken = context.ConsumerContext.WorkerStopped;
@@ -27,7 +23,7 @@ public partial class WeatherDeduplicationMiddleware(
         await strategy.ExecuteAsync(
             async token =>
             {
-                await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+                await using var transaction = await dbContext.Database.BeginTransactionAsync(token);
 
                 var groupId = context.ConsumerContext.GroupId;
                 var eventId = payload.EventId;

@@ -7,11 +7,13 @@
     <PackageReference Include="Aspire.Hosting.Kafka" />
     <PackageReference Include="Aspire.Hosting.PostgreSQL" />
     <PackageReference Include="Aspire.Hosting.Valkey" />
+    <PackageReference Include="CommunityToolkit.Aspire.Hosting.McpInspector" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\DotNetDistributedApp.Api.Data.MigrationService\DotNetDistributedApp.Api.Data.MigrationService.csproj" />
     <ProjectReference Include="..\DotNetDistributedApp.Api\DotNetDistributedApp.Api.csproj" />
     <ProjectReference Include="..\DotNetDistributedApp.Events.Consumer\DotNetDistributedApp.Events.Consumer.csproj" />
+    <ProjectReference Include="..\DotNetDistributedApp.McpServer\DotNetDistributedApp.McpServer.csproj" />
     <ProjectReference Include="..\DotNetDistributedApp.ScheduledTasks\DotNetDistributedApp.ScheduledTasks.csproj" />
     <ProjectReference
       Include="..\DotNetDistributedApp.ServiceDefaults\DotNetDistributedApp.ServiceDefaults.csproj"

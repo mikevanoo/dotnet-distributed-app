@@ -1,4 +1,4 @@
-﻿<Solution>
+<Solution>
     <Folder Name="/files/">
         <File Path=".gitignore" />
         <File Path="lint-fix.sh" />
@@ -19,6 +19,7 @@
         <File Path=".github\workflows\dotnet.yml" />
     </Folder>
     <Folder Name="/src/">
+        <Project Path="src/DotNetDistributedApp.McpServer/DotNetDistributedApp.McpServer.csproj" />
         <Project Path="src/DotNetDistributedApp.ScheduledTasks\DotNetDistributedApp.ScheduledTasks.csproj" />
         <Project Path="src\DotNetDistributedApp.Api.Common\DotNetDistributedApp.Api.Common.csproj" />
         <Project Path="src\DotNetDistributedApp.Api.Data.MigrationService\DotNetDistributedApp.Api.Data.MigrationService.csproj" />

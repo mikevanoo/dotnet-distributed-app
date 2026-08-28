@@ -23,10 +23,17 @@ public class WeatherTools(WeatherApiClient weatherApiClient)
     )]
     public async Task<WeatherStationHistoricDataDto> GetWeatherStationHistoricData(
         [Description("The station key, from list_weather_stations.")] string stationKey,
+        [Description("Earliest year to include, inclusive. Omit for no lower bound.")] int? fromYear,
+        [Description("Latest year to include, inclusive. Omit for no upper bound.")] int? toYear,
         CancellationToken cancellationToken
     ) =>
         new()
         {
-            StationHistoricData = await weatherApiClient.GetWeatherStationHistoricData(stationKey, cancellationToken),
+            StationHistoricData = await weatherApiClient.GetWeatherStationHistoricData(
+                stationKey,
+                fromYear,
+                toYear,
+                cancellationToken
+            ),
         };
 }

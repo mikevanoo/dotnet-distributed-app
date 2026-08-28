@@ -17,11 +17,13 @@ public partial class WeatherApiClient(HttpClient httpClient, ILogger<WeatherApiC
 
     public async Task<IReadOnlyList<WeatherStationHistoricDataDto>> GetWeatherStationHistoricData(
         string stationKey,
+        int? fromYear,
+        int? toYear,
         CancellationToken cancellationToken
     )
     {
         var response = await httpClient.GetFromJsonAsync<ResponseDtoOfListOfWeatherStationHistoricDataDto>(
-            $"/v2.0/weather/stations/{stationKey}/historic-data",
+            $"/v2.0/weather/stations/{stationKey}/historic-data?fromYear={fromYear}&toYear={toYear}",
             cancellationToken
         );
         return response?.Response?.ToArray() ?? [];

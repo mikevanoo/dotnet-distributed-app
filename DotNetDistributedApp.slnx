@@ -32,6 +32,7 @@
     </Folder>
     <Folder Name="/tests/">
         <Project Path="tests/DotNetDistributedApp.Api.Tests\DotNetDistributedApp.Api.Tests.csproj" />
+        <Project Path="tests/DotNetDistributedApp.McpServer.Tests\DotNetDistributedApp.McpServer.Tests.csproj" />
         <Project Path="tests/DotNetDistributedApp.Events.Consumer.Tests\DotNetDistributedApp.Events.Consumer.Tests.csproj" />
         <Project Path="tests\DotNetDistributedApp.IntegrationTests\DotNetDistributedApp.IntegrationTests.csproj" />
         <Project Path="tests\DotNetDistributedApp.SpatialApi.Tests\DotNetDistributedApp.SpatialApi.Tests.csproj" />

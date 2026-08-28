@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using DotNetDistributedApp.McpServer.Clients;
 using ModelContextProtocol.Server;
 
@@ -15,7 +15,7 @@ public class WeatherTools(WeatherApiClient weatherApiClient)
     public async Task<WeatherStationsDto> ListWeatherStations(CancellationToken cancellationToken) =>
         new() { Stations = await weatherApiClient.GetWeatherStations(cancellationToken) };
 
-    [McpServerTool(Name = "get_station_historic_data", UseStructuredContent = true)]
+    [McpServerTool(Name = "get_station_historic_data", UseStructuredContent = true, ReadOnly = true, Idempotent = true)]
     [Description(
         "Returns monthly historic weather readings for a single station. "
             + "Each row covers one calendar month. Use the optional filters to narrow the result: "
@@ -36,4 +36,28 @@ public class WeatherTools(WeatherApiClient weatherApiClient)
                 cancellationToken
             ),
         };
+
+    [McpServerTool(
+        Name = "summarise_station_historic_data",
+        UseStructuredContent = true,
+        ReadOnly = true,
+        Idempotent = true
+    )]
+    [Description(
+        "Returns aggregated historic weather data for a station over a range of years: mean daily maximum and "
+            + "minimum temperature weighted by the length of each month, plus total rainfall, total sunshine hours "
+            + "and total days of air frost. Each figure covers only the months that carry a reading, and the "
+            + "coverage object reports how many that was, so check it before describing a total as complete. "
+            + "Prefer this over get_station_historic_data whenever the question asks for an average, "
+            + "total or comparison rather than for individual monthly readings."
+    )]
+    public async Task<SummarisedWeatherStationHistoricDataDto> SummariseWeatherStationHistoricData(
+        [Description("The station key, from list_weather_stations.")] string stationKey,
+        [Description("Earliest year to include, inclusive.")] int fromYear,
+        [Description("Latest year to include, inclusive.")] int toYear,
+        CancellationToken cancellationToken
+    ) =>
+        WeatherStationHistoricDataSummariser.Summarise(
+            await weatherApiClient.GetWeatherStationHistoricData(stationKey, fromYear, toYear, cancellationToken)
+        );
 }

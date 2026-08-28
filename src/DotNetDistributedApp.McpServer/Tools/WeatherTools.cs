@@ -14,4 +14,19 @@ public class WeatherTools(WeatherApiClient weatherApiClient)
     )]
     public async Task<WeatherStationsDto> ListWeatherStations(CancellationToken cancellationToken) =>
         new() { Stations = await weatherApiClient.GetWeatherStations(cancellationToken) };
+
+    [McpServerTool(Name = "get_station_historic_data", UseStructuredContent = true)]
+    [Description(
+        "Returns monthly historic weather readings for a single station. "
+            + "Each row covers one calendar month. Use the optional filters to narrow the result: "
+            + "an unfiltered station can return over a century of monthly rows."
+    )]
+    public async Task<WeatherStationHistoricDataDto> GetWeatherStationHistoricData(
+        [Description("The station key, from list_weather_stations.")] string stationKey,
+        CancellationToken cancellationToken
+    ) =>
+        new()
+        {
+            StationHistoricData = await weatherApiClient.GetWeatherStationHistoricData(stationKey, cancellationToken),
+        };
 }

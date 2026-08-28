@@ -63,6 +63,8 @@ public class WeatherService(
     )]
     public async Task<Result<ResponseDto<List<WeatherStationHistoricDataDto>>>> GetWeatherStationHistoricData(
         string stationKey,
+        int? fromYear,
+        int? toYear,
         CancellationToken cancellationToken = default
     )
     {
@@ -77,11 +79,21 @@ public class WeatherService(
 
         Stopwatch stopWatch = new();
         stopWatch.Start();
-        var historicData = await dbContext
-            .WeatherStationHistoricData.Where(x => x.WeatherStationId == station.Id)
+
+        var query = dbContext.WeatherStationHistoricData.Where(x => x.WeatherStationId == station.Id);
+        if (fromYear.HasValue)
+        {
+            query = query.Where(x => x.Year >= fromYear.Value);
+        }
+        if (toYear.HasValue)
+        {
+            query = query.Where(x => x.Year <= toYear.Value);
+        }
+        var historicData = await query
             .OrderByDescending(x => x.Year)
             .ThenByDescending(x => x.Month)
             .ToListAsync(cancellationToken);
+
         stopWatch.Stop();
         metricsService.DatabaseQueryTime(stopWatch.ElapsedMilliseconds, "WeatherStationHistoricData");
 

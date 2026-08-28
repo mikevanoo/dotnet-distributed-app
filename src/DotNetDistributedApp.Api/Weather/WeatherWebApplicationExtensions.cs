@@ -20,9 +20,17 @@ public static class WeatherWebApplicationExtensions
                 "/stations/{stationKey}/historic-data",
                 async (
                     [FromServices] WeatherService weatherService,
-                    string stationKey,
+                    [AsParameters] GetWeatherStationHistoricDataRequest request,
                     CancellationToken cancellationToken
-                ) => (await weatherService.GetWeatherStationHistoricData(stationKey, cancellationToken)).ToApiResponse()
+                ) =>
+                    (
+                        await weatherService.GetWeatherStationHistoricData(
+                            request.StationKey,
+                            request.FromYear,
+                            request.ToYear,
+                            cancellationToken
+                        )
+                    ).ToApiResponse()
             )
             .CacheOutput(Constants.CachePolicy.WeatherStationHistoricData);
 

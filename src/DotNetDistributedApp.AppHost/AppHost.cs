@@ -1,4 +1,4 @@
-using DotNetDistributedApp.AppHost;
+﻿using DotNetDistributedApp.AppHost;
 using DotNetDistributedApp.ServiceDefaults;
 
 var builder = DistributedApplication.CreateBuilder(args);
@@ -75,6 +75,23 @@ var api = builder
     .WaitFor(cache)
     .WithReference(events)
     .WaitFor(events);
+
+#pragma warning disable ASPIREMCP001 (suppress to allow use of experimental WithMcpServer() call)
+var mcpServer = builder
+    .AddProject<Projects.DotNetDistributedApp_McpServer>(ResourceNames.McpServer)
+    .WithMcpServer()
+#pragma warning restore ASPIREMCP001
+    .WithHttpHealthCheck("/health")
+    .WithReference(api)
+    .WaitFor(api);
+
+var mcpInspector = builder
+    // >= v0.17.5 is needed for the "[ERR_INVALID_STATE]: Invalid state: Controller is already closed" fix.
+    // See https://github.com/modelcontextprotocol/inspector/pull/941
+    .AddMcpInspector(ResourceNames.McpInspector, options => options.InspectorVersion = "0.17.5")
+    .WithMcpServer(mcpServer)
+    .WithParentRelationship(mcpServer)
+    .WithExplicitStart();
 
 var scheduledTasks = builder
     .AddProject<Projects.DotNetDistributedApp_ScheduledTasks>(ResourceNames.ScheduledTasks)

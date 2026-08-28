@@ -12,4 +12,6 @@ public static class ResourceNames
     public const string EventsConsumer = "events-consumer";
     public const string Api = "api";
     public const string ScheduledTasks = "scheduled-tasks";
+    public const string McpServer = "mcp-server";
+    public const string McpInspector = "mcp-inspector";
 }

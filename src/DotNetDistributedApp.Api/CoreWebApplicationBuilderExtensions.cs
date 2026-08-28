@@ -33,6 +33,7 @@ public static class CoreWebApplicationBuilderExtensions
                 options.SerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
             })
             .AddProblemDetails()
+            .AddValidation()
             // Ordering for versioning and OpenApi is essential: AddApiVersion() then AddApiExplorer() then AddOpenApi()
             .AddApiVersioning(options =>
             {

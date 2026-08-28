@@ -32,7 +32,7 @@ Run these from the repository root.
 
 - **Build:** `dotnet build`
 - **Run:** `dotnet run --project src/DotNetDistributedApp.AppHost` (starts all services via Aspire)
-- **Test (unit):** `dotnet test --project tests/DotNetDistributedApp.Api.Tests && dotnet test --project tests/DotNetDistributedApp.SpatialApi.Tests && dotnet test --project tests/DotNetDistributedApp.Events.Consumer.Tests`
+- **Test (unit):** `dotnet test --project tests/DotNetDistributedApp.Api.Tests && dotnet test --project tests/DotNetDistributedApp.SpatialApi.Tests && dotnet test --project tests/DotNetDistributedApp.Events.Consumer.Tests && dotnet test --project tests/DotNetDistributedApp.McpServer.Tests`
 - **Test (all, requires Docker):** `dotnet test`
 - **Test (code coverage):** `./coverage-report.ps1`
 - **Lint check:** `pwsh ./lint-check.ps1` or `./lint-check.sh` (runs `dotnet format analyzers --verify-no-changes` and `dotnet csharpier check .`)
@@ -56,11 +56,13 @@ src/
   DotNetDistributedApp.SpatialApi/    # Upstream microservice for coordinate conversion
   DotNetDistributedApp.Events.Consumer/  # Kafka consumer service
   DotNetDistributedApp.ScheduledTasks/   # Coravel scheduled jobs (purges the processed events inbox)
+  DotNetDistributedApp.McpServer/         # MCP server exposing the weather API as tools
   DotNetDistributedApp.ServiceDefaults/  # Aspire service defaults (telemetry, health checks)
 tests/
   DotNetDistributedApp.Api.Tests/           # Unit tests for API
   DotNetDistributedApp.SpatialApi.Tests/    # Unit tests for SpatialApi
   DotNetDistributedApp.Events.Consumer.Tests/  # Unit tests for consumer
+  DotNetDistributedApp.McpServer.Tests/     # Unit tests for MCP server tools
   DotNetDistributedApp.IntegrationTests/    # Aspire integration tests (requires Docker)
 ```
 

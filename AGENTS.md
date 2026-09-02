@@ -79,6 +79,7 @@ tests/
 - `coverage.runsettings` - controls code coverage exclusions, referenced by the coverage command
 - `src/DotNetDistributedApp.ServiceDefaults/ResourceNames.cs` - shared constants for Aspire resource names used throughout AppHost
 - `docs/K8S-DEPLOYMENT-TESTING-COMMANDS.md` - how to deploy to a local cluster and verify it by hand. Most of its checks are automated in `tests/DotNetDistributedApp.DeploymentTests`; the page says which test class covers each section and keeps the parts that cannot be automated.
+- `docs/ARCHITECTURE.md` - the C4 model, levels 1-3 plus a deployment view, as Mermaid so it renders on github.com. `docs/architecture/workspace.dsl` is the same architecture as a Structurizr model for interactive local browsing. Both are a reading of `AppHost.cs`, which stays authoritative: if you change the service dependency graph, update the container diagram and the DSL.
 - `docs/KAFKA-IDEMPOTENCY-PLAN.md` - the design record for the consumer's transactional inbox: the options considered, why the DB-backed one was chosen, and the KafkaFlow/EF Core behaviour each decision rests on. The constraints it produced are summarised in the sections above; read it when you need the reasoning rather than the rule.
 
 ## Architecture

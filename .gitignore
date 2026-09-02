@@ -70,3 +70,7 @@ nunit-*.xml
 .aspire-publish*/
 .aspire-deploy*/
 aspire-output/
+
+# `helm template ... > rendered.yaml`, from docs/K8S-DEPLOYMENT-TESTING-COMMANDS.md. Generated on demand;
+# the chart tests render their own copy into a temp directory.
+rendered.yaml

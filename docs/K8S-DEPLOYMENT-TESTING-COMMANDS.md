@@ -486,6 +486,8 @@ clears any that were missed.
 | Requests return 200 but take ~18s | A dependency is unreachable and burning its retry budget before the fallback returns 204. Check `kubectl logs -n $N deploy/api-deployment` for `BrokenCircuitException`. |
 | `ImagePullBackOff` | The image tag in `values.yaml` is not in the registry. Re-run `aspire deploy`; check `Invoke-RestMethod http://localhost:5000/v2/_catalog`. |
 | Migration pod restarting | It has been published as a Deployment. It should be a Job - see `PublishAsKubernetesJob`. |
+| Migration log has one `fail: Microsoft.EntityFrameworkCore.Database.Connection[20004]` | Expected on a **first** deploy only. `MigrateAsync` finds out whether the database exists by connecting to it, so on an empty volume that probe fails with `3D000` and EF logs it at Error level - immediately before the `CREATE DATABASE` that fixes it. A redeploy onto the existing volume logs none. `MigrationJobLogShould` allows exactly this one, and only when the same run created the database. |
+| `Cannot load library libgssapi_krb5.so.2` | Benign. Npgsql probes for Kerberos on its first connection and the chiselled base image has no krb5; auth is scram-sha-256 and the connection then succeeds. Every .NET pod that talks to Postgres prints it once. |
 | Deploy went to the wrong cluster | `aspire deploy` uses the current context and has no `--context` flag. Check `kubectl config current-context` first. |
 | Dashboard login URL is rejected | The pod restarted and generated a new token. Re-read it from the log. |
 | Dashboard Resources page is empty | Expected - standalone dashboard, no resource service. Only the telemetry pages carry data. |

@@ -55,7 +55,8 @@ var apiDatabaseMigrations = builder
     .WithReference(apiDatabase)
     .WithParentRelationship(apiDatabase)
     .WaitFor(apiDatabase)
-    // This service migrates and exits, so it must not be published as a Deployment.
+    // This service migrates and exits, so it must not be published as a Deployment. As a pre-upgrade
+    // Helm hook the Job also gates a redeploy: if it fails, no workload is updated.
     .PublishAsKubernetesJob();
 
 var cache = builder.AddValkey(ResourceNames.Cache);

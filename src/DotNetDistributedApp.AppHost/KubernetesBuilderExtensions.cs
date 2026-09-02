@@ -20,7 +20,7 @@ public static class KubernetesBuilderExtensions
 
     /// <summary>
     /// Publishes a run-once resource as a <c>batch/v1</c> Job wired up as a Helm
-    /// <c>post-install</c>/<c>post-upgrade</c> hook, replacing the Deployment the publisher would
+    /// <c>post-install</c>/<c>pre-upgrade</c> hook, replacing the Deployment the publisher would
     /// otherwise emit.
     /// </summary>
     /// <remarks>
@@ -30,18 +30,35 @@ public static class KubernetesBuilderExtensions
     /// to be added by hand - see <see cref="JobV1" />.
     /// </para>
     /// <para>
-    /// The hook is <c>post-install</c> and not <c>pre-install</c> on purpose. Helm runs pre-install
-    /// hooks before any release resource exists, so the Job would find neither the ConfigMap and
-    /// Secret it reads its connection string from nor the database it connects to. Running after
-    /// install means both exist. Helm still waits for the hook to succeed before reporting the
-    /// release installed.
+    /// <c>pre-upgrade</c> makes the Job a gate on every redeploy. Helm runs pre-upgrade hooks before
+    /// it applies a single updated manifest, so a migration that exhausts its <paramref name="backoffLimit" />
+    /// fails the upgrade with nothing applied and the previous ReplicaSet still serving. It is also the
+    /// right ordering for a schema change: the migration runs while the old code is live, which is what
+    /// a backwards-compatible migration is written for. Under <c>post-upgrade</c> - the original choice -
+    /// the new image was already rolled out and serving against an unmigrated schema by the time the Job
+    /// started.
     /// </para>
     /// <para>
-    /// The trade-off is that dependent services start before the schema is in place and will log
-    /// connection or missing-relation errors for the first few seconds. That is survivable here
-    /// because the migration itself retries through an EF Core execution strategy and the services
-    /// use <c>EnableRetryOnFailure</c>. It does not reproduce <c>WaitForCompletion</c>, which is a
-    /// run-mode-only gate; gating deployed pods needs an init container on each dependent.
+    /// The first install cannot be gated the same way, hence the pair. Helm runs pre-install hooks
+    /// before any release resource exists, so a <c>pre-install</c> Job would find neither the ConfigMap
+    /// and Secret it reads its connection string from nor the database it connects to. There is nothing
+    /// to protect on a first install anyway - no previous version is serving - so it stays
+    /// <c>post-install</c>, which Helm still waits on before reporting the release installed. Dependent
+    /// services therefore start before the schema does on that one deploy and log connection or
+    /// missing-relation errors for a few seconds; the migration's EF Core execution strategy and the
+    /// services' <c>EnableRetryOnFailure</c> absorb it.
+    /// </para>
+    /// <para>
+    /// Two consequences of gating this way. The Job's <c>envFrom</c> resolves the *previous* revision's
+    /// ConfigMap and Secret, because Helm updates release resources only after the hook succeeds - the
+    /// image comes from the new values, but a deploy that changes the database host or password in the
+    /// same revision migrates using the old one. And Helm's <c>--timeout</c> (5 minutes by default)
+    /// expires before a <paramref name="backoffLimit" /> of 10 does, so a genuinely broken migration
+    /// fails the upgrade while its Job keeps retrying in the background.
+    /// </para>
+    /// <para>
+    /// This still does not reproduce <c>WaitForCompletion</c>, which is a run-mode-only gate. It gates
+    /// the release, not the pods; gating pod startup needs an init container on each dependent.
     /// </para>
     /// </remarks>
     public static IResourceBuilder<T> PublishAsKubernetesJob<T>(this IResourceBuilder<T> builder, int backoffLimit = 10)
@@ -60,7 +77,7 @@ public static class KubernetesBuilderExtensions
 
             var job = new JobV1 { Spec = { BackoffLimit = backoffLimit, Template = template } };
             job.Metadata.Name = $"{builder.Resource.Name}-job";
-            job.Metadata.Annotations["helm.sh/hook"] = "post-install,post-upgrade";
+            job.Metadata.Annotations["helm.sh/hook"] = "post-install,pre-upgrade";
             job.Metadata.Annotations["helm.sh/hook-weight"] = "-5";
             job.Metadata.Annotations["helm.sh/hook-delete-policy"] = "before-hook-creation";
 

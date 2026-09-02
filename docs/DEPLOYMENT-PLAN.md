@@ -65,7 +65,7 @@ Because both stages are Kubernetes, the **workload shape is identical in each co
 | `mcp-server` | `Deployment` + `Service`, **1 replica** | `ClusterIP`, or Traefik if a client needs it | AGC route + session affinity, or stay at 1 replica | `WithHttpTransport(o => o.SessionMode = HttpServerSessionMode.StatefulForInitializeClients)` keeps MCP sessions **in process memory**. Multi-replica without affinity breaks clients. SSE streaming also needs response buffering off and a long idle timeout on whatever fronts it. |
 | `events-consumer` | `Deployment`, **no Service**, `replicas: 1` | — | — | Topic `common` is created with **1 partition**, group `events-consumer` → a second replica gets no partitions and idles. Concurrency comes from `WithWorkersCount(3)` instead. Do not put an HPA on this. |
 | `scheduled-tasks` | `Deployment`, no Service, `replicas: 1` | — | — | Coravel cron is `* * * * *` and `PreventOverlapping` uses an **in-process** mutex. Two replicas both fire every minute. Hard-pin to 1. |
-| `api-database-migrations` | **`Job`**, `restartPolicy: OnFailure` | Helm `post-install`/`post-upgrade` hook | same | Run-once: migrates then calls `StopApplication()`. Must be single-instance (`__efmigrationshistory` races). See the ordering section — `WaitForCompletion` will not do this once deployed. |
+| `api-database-migrations` | **`Job`**, `restartPolicy: OnFailure` | Helm `post-install`/`pre-upgrade` hook | same | Run-once: migrates then calls `StopApplication()`. Must be single-instance (`__efmigrationshistory` races). `pre-upgrade` makes it a gate: a failed migration aborts the upgrade before any manifest is applied. See the ordering section — `WaitForCompletion` will not do this once deployed. |
 | `api-database` / `api-database-server` | `StatefulSet` + PVC *(local only)* | `StatefulSet` + PVC on `local-path` | **Azure Database for PostgreSQL Flexible Server**, Burstable B1ms | The only durable store. On AKS this leaves the cluster entirely — no StatefulSet, no PVC, just a connection string. |
 | `cache` | `Deployment` *(local only)* | Valkey container, no PVC | **Azure Managed Redis**, smallest SKU | Cache-only — HybridCache L2 + output cache. No persistence required; a cold cache is a non-event. The client already uses `Aspire.StackExchange.Redis.*`, so the Valkey → Redis swap is config-only. |
 | `events` | *(differs)* | Event Hubs emulator + Azurite, as containers | **Azure Event Hubs**, Kafka endpoint, Standard tier | The one resource with no drop-in equivalent. Details below — this is where the real work is. |
@@ -82,7 +82,11 @@ This deserves its own section because it is the one place where the local app mo
 
 `AppHost.cs` gates `api`, `events-consumer` and `scheduled-tasks` on `.WaitForCompletion(apiDatabaseMigrations)`. **That gating is run-mode only.** Once published, `WaitForCompletion` does not hold back the deployed workloads — the chart has to enforce the ordering itself.
 
-The fix is the same in both stages: the migration resource becomes a **`Job` with `restartPolicy: OnFailure`**, via the publisher customisation hook (`.PublishAsKubernetesService(...)`) plus a Helm `post-install`/`post-upgrade` hook. Left as a plain `Deployment`, it migrates, exits 0, and Kubernetes restarts it forever.
+The fix is the same in both stages: the migration resource becomes a **`Job` with `restartPolicy: OnFailure`**, via the publisher customisation hook (`.PublishAsKubernetesService(...)`) plus a Helm `post-install`/`pre-upgrade` hook. Left as a plain `Deployment`, it migrates, exits 0, and Kubernetes restarts it forever.
+
+**`pre-upgrade` is what makes the Job a gate.** Helm runs pre-upgrade hooks before it applies a single updated manifest, so a migration that fails aborts the upgrade with nothing applied and the previous ReplicaSet still serving. It is also the right ordering for a schema change — the migration runs while the old code is live, which is what a backwards-compatible migration is written for. Under the original `post-upgrade`, the new image had already rolled out and was serving against an unmigrated schema by the time the Job started, and a failure left a `failed` release *and* running new pods.
+
+A first install cannot be gated the same way, which is why the annotation is a pair — see the chart notes below for why `pre-install` is not available, and `PublishAsKubernetesJob` for the two consequences of gating on a hook (the Job reads the *previous* revision's ConfigMap and Secret, and Helm's `--timeout` expires before a `backoffLimit` of 10 does). The gate is on the release, not on pod startup: a pod-level gate still needs an init container on each dependent.
 
 Aspire 13 also has a first-party alternative that would remove the hand-rolled worker entirely:
 
@@ -261,12 +265,13 @@ recorded here rather than silently corrected:
   `StatefulSet`, so the migration service could not be published as a Job as assumed. `JobV1` /
   `JobSpecV1` in `src/DotNetDistributedApp.AppHost/KubernetesJobResources.cs` add the missing
   `batch/v1` type, and `PublishAsKubernetesJob()` swaps the Deployment for it.
-- **The migration hook is `post-install`, not `pre-install`.** Helm runs pre-install hooks before any
+- **The migration hook is `post-install`, never `pre-install`.** Helm runs pre-install hooks before any
   release resource exists, so the Job would find neither its ConfigMap and Secret nor the database.
   Running it post-install means both exist, and Helm still waits for it. The residual cost is that
-  dependent services start before the schema does; the EF Core execution strategy and
-  `EnableRetryOnFailure` absorb it. This is *not* equivalent to `WithFor`/`WaitForCompletion` - gating
-  deployed pods properly needs an init container on each dependent.
+  dependent services start before the schema does *on a first install*; the EF Core execution strategy
+  and `EnableRetryOnFailure` absorb it. Redeploys do not pay that cost, because the upgrade half of the
+  annotation is `pre-upgrade` - the gate. Neither is equivalent to `WaitFor`/`WaitForCompletion`, which
+  gate resource *startup*: gating deployed pods needs an init container on each dependent.
 - **`Aspire.Hosting.Kubernetes` is preview-only.** No stable release exists; the repo is otherwise
   entirely stable packages.
 

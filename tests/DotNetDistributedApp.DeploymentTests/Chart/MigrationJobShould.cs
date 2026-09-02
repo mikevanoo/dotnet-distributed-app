@@ -30,13 +30,16 @@ public class MigrationJobShould(ChartFixture chartFixture)
             .Be("OnFailure");
 
     [ChartFact]
-    public void RunAsAHelmPostInstallAndPostUpgradeHook()
+    public void RunAsAHelmPostInstallAndPreUpgradeHook()
     {
         var annotations = chartFixture.Job(ResourceNames.ApiDatabaseMigrations)!.Metadata.Annotations;
 
-        // post-install rather than pre-install: a pre-install hook runs before the ConfigMap, Secret and
-        // database it needs exist. Helm still waits for the hook before reporting the release installed.
-        annotations.Should().Contain("helm.sh/hook", "post-install,post-upgrade");
+        // pre-upgrade, not post-upgrade: Helm runs pre-upgrade hooks before applying any updated
+        // manifest, so a failed migration aborts the upgrade with the previous ReplicaSet still serving.
+        // post-upgrade rolled the new image out first and only then found out the schema was not there.
+        // The first install stays post-install because a pre-install hook runs before the ConfigMap,
+        // Secret and database it needs exist - and there is no previous version to protect.
+        annotations.Should().Contain("helm.sh/hook", "post-install,pre-upgrade");
         annotations.Should().Contain("helm.sh/hook-delete-policy", "before-hook-creation");
     }
 

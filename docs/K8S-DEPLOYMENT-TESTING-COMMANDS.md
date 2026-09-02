@@ -72,6 +72,23 @@ aspire deploy --list-steps --non-interactive
 
 Namespace and release are both `dotnet-distributed-app`.
 
+### A redeploy is gated on the migration
+
+The migration Job is a Helm `post-install`/`pre-upgrade` hook, so from the second deploy onwards Helm
+runs it **before** applying any updated manifest. A migration that fails takes the whole upgrade with
+it and nothing is applied — the previously deployed pods keep serving the old image. That is
+deliberate; see `PublishAsKubernetesJob` in
+`src/DotNetDistributedApp.AppHost/KubernetesBuilderExtensions.cs`.
+
+```powershell
+helm history dotnet-distributed-app -n $N     # a blocked upgrade leaves the last good revision deployed
+kubectl get jobs -n $N                        # the failed hook Job is kept for its logs
+kubectl logs -n $N job/api-database-migrations-job
+```
+
+The Job is annotated `helm.sh/hook-delete-policy: before-hook-creation`, so a failed one stays until
+the next deploy replaces it. Read its log before redeploying.
+
 ---
 
 ## Check the deployment came up
@@ -488,6 +505,9 @@ clears any that were missed.
 | Migration pod restarting | It has been published as a Deployment. It should be a Job - see `PublishAsKubernetesJob`. |
 | Migration log has one `fail: Microsoft.EntityFrameworkCore.Database.Connection[20004]` | Expected on a **first** deploy only. `MigrateAsync` finds out whether the database exists by connecting to it, so on an empty volume that probe fails with `3D000` and EF logs it at Error level - immediately before the `CREATE DATABASE` that fixes it. A redeploy onto the existing volume logs none. `MigrationJobLogShould` allows exactly this one, and only when the same run created the database. |
 | `Cannot load library libgssapi_krb5.so.2` | Benign. Npgsql probes for Kerberos on its first connection and the chiselled base image has no krb5; auth is scram-sha-256 and the connection then succeeds. Every .NET pod that talks to Postgres prints it once. |
+| `aspire deploy` fails with no pod changed | Expected when the migration fails: it is a `pre-upgrade` hook, so Helm aborts before applying anything. `kubectl logs -n $N job/api-database-migrations-job` is the signal. Fix the migration and redeploy - the old release keeps serving meanwhile. |
+| Upgrade fails at ~5 minutes while the migration Job is still retrying | Helm's default `--timeout` is 5 minutes and the Job's `backoffLimit` is 10, so Helm gives up first. The orphaned Job carries on and may apply the schema after the upgrade has already failed; check `kubectl get jobs -n $N` before assuming the schema is untouched. |
+| `another operation (install/upgrade/rollback) is in progress` | A previous `aspire deploy` was killed mid-upgrade and the release is stuck `pending-upgrade`. `helm rollback dotnet-distributed-app -n $N` returns it to the last deployed revision, then redeploy. |
 | Deploy went to the wrong cluster | `aspire deploy` uses the current context and has no `--context` flag. Check `kubectl config current-context` first. |
 | Dashboard login URL is rejected | The pod restarted and generated a new token. Re-read it from the log. |
 | Dashboard Resources page is empty | Expected - standalone dashboard, no resource service. Only the telemetry pages carry data. |

@@ -20,14 +20,14 @@ All three notes have aged. **Aspir8 is no longer needed** — Aspire 13.3+ ships
 
 Two stages, in this order:
 
-1. **Local Kubernetes** on Rancher Desktop, with an **emulator standing in for Kafka**.
+1. **Local Kubernetes** on Rancher Desktop, with a **single-broker Kafka container**.
 2. **Azure Kubernetes Service**, with Azure PaaS behind the data resources.
 
 Both target a **demo/showcase** standard, not production: cost and simplicity over HA.
 
 Choosing AKS over Container Apps for stage 2 makes the two stages **the same mechanism**. Both produce a Helm chart from the same app model; both use `Deployment`, `StatefulSet`, `Service`, `Job` and `PersistentVolumeClaim`; both take the same `.PublishAsKubernetesService(...)` customisations. Stage 1 stops being a rehearsal and becomes the first environment. What actually differs between them is narrow and enumerable: where images come from, what backs the data resources, how ingress and TLS are wired, and how telemetry leaves the cluster.
 
-The Kafka emulator choice compounds that. The emulator is the **Azure Event Hubs emulator**, which speaks the Kafka protocol — so stage 1 also exercises the same client configuration and the same three code changes that Event Hubs will need. Kafka is the highest-risk part of this migration; doing it first and locally is the cheaper ordering.
+Stage 1 originally planned to run the **Azure Event Hubs emulator** in place of Kafka, so that it would exercise the same client configuration Event Hubs needs. That is now deferred to the first stage 2 increment, because the deployed Kafka path works and is test-covered. The Kafka section below records the decision, the code changes still outstanding, and what the emulator increment will look like.
 
 ---
 
@@ -68,7 +68,7 @@ Because both stages are Kubernetes, the **workload shape is identical in each co
 | `api-database-migrations` | **`Job`**, `restartPolicy: OnFailure` | Helm `post-install`/`pre-upgrade` hook | same | Run-once: migrates then calls `StopApplication()`. Must be single-instance (`__efmigrationshistory` races). `pre-upgrade` makes it a gate: a failed migration aborts the upgrade before any manifest is applied. See the ordering section — `WaitForCompletion` will not do this once deployed. |
 | `api-database` / `api-database-server` | `StatefulSet` + PVC *(local only)* | `StatefulSet` + PVC on `local-path` | **Azure Database for PostgreSQL Flexible Server**, Burstable B1ms | The only durable store. On AKS this leaves the cluster entirely — no StatefulSet, no PVC, just a connection string. |
 | `cache` | `Deployment` *(local only)* | Valkey container, no PVC | **Azure Managed Redis**, smallest SKU | Cache-only — HybridCache L2 + output cache. No persistence required; a cold cache is a non-event. The client already uses `Aspire.StackExchange.Redis.*`, so the Valkey → Redis swap is config-only. |
-| `events` | *(differs)* | Event Hubs emulator + Azurite, as containers | **Azure Event Hubs**, Kafka endpoint, Standard tier | The one resource with no drop-in equivalent. Details below — this is where the real work is. |
+| `events` | *(differs)* | Kafka container, no PVC | **Azure Event Hubs**, Kafka endpoint, Standard tier | The one resource with no drop-in equivalent. Details below — this is where the real work is. The local broker is deliberately ephemeral: no `WithDataVolume`, so an `emptyDir`. |
 | `geoip-api` | `Deployment` + `Service` | `ClusterIP` | `ClusterIP` | Third-party image `observabilitystack/geoip-api`, **no tag pinned** → resolves to `:latest`. Pin it before any registry-based deploy. No licence key or MMDB volume is configured anywhere; the image relies on its bundled free data. |
 | `pgadmin`, `kafka-ui`, `mcp-inspector` | should not be deployed | | | These are `WithExplicitStart()` only — **not** `ExcludeFromManifest()` — so they *will* appear in a published manifest and get deployed. `redisinsight` is correctly excluded (`ValkeyBuilderExtensions.cs:69`). |
 
@@ -103,40 +103,72 @@ Weigh that against what it would cost: the current `Api.Data.MigrationService` d
 
 ---
 
-## Kafka: the emulator path
+## Kafka: Event Hubs, and why the emulator is deferred
 
-The Azure Event Hubs emulator speaks the Kafka protocol on port 9092:
+Stage 1 deploys the **single-broker Kafka container** that `AddKafka` has always produced. The Azure Event Hubs emulator was the original stage 1 plan and is now deferred to the first stage 2 increment. This section records why, what the code still needs before that changes, and what the emulator increment will need.
 
-- Image `mcr.microsoft.com/azure-messaging/eventhubs-emulator`, plus **Azurite** as a required dependency
-- `ACCEPT_EULA=Y` must be set
-- Entities (topics), their **partition counts** and consumer groups are declared in a **`Config.json` mounted into the container** — they are not created at runtime
-- Kafka client config: `SecurityProtocol.SaslPlaintext`, `SaslMechanism.Plain`, username `$ConnectionString`, password = the emulator connection string
-- **Only producer and consumer APIs are supported** — no AdminClient
+### Why the original ordering no longer holds
 
-Real Event Hubs is the same shape with `SaslSsl` instead of `SaslPlaintext`, port 9093, and topics provisioned as event hubs via Bicep. Standard tier is the minimum for Kafka; Premium is recommended for full protocol compatibility.
+The argument for the emulator was that Kafka is the highest-risk part of the migration, so it should be faced first and locally. That was true when nothing was deployed. It is not true now: `events` is in the chart (`Chart/PublishedResourcesShould`) and the whole event path is verified against the deployed cluster by `Api/EventEndpointsShould`, `Events/TransactionalInboxShould` and `Events/EventRetryLadderShould`. Kafka is the *proven* part of stage 1. Swapping the emulator in today would not de-risk the deployment; it would reopen a green path in order to rehearse a risk that only exists in stage 2.
 
-### Three consequences for this codebase, identical in both stages
+### What the emulator would buy
 
-1. **`CreateTopicIfNotExists` stops working.** Both `src/DotNetDistributedApp.Api/CoreWebApplicationBuilderExtensions.cs` and `src/DotNetDistributedApp.Events.Consumer/ServiceCollectionExtensions.cs` call `.CreateTopicIfNotExists(Topics.Common, 1, 1)` / `CommonDlq`. That is an AdminClient call. `common` and `common-dlq` must instead be declared in the emulator's `Config.json`, and provisioned as event hubs on AKS.
-2. **SASL settings must reach both the producer and the consumer.** The producer is built by hand from `GetConnectionString("events")` via `.WithBrokers([cs])`; the consumer likewise. Neither goes through `AddKafkaProducer`/`AddKafkaConsumer`, so nothing wires SASL automatically — `ProducerConfig` and `ConsumerConfig` both need `SecurityProtocol`/`SaslMechanism`/`SaslUsername`/`SaslPassword`.
-3. **The partition count becomes a provisioning decision, not a code one.** Today `1` is hard-coded in `CreateTopicIfNotExists`, and that single partition is what caps `events-consumer` at one replica. Declaring more partitions in `Config.json` / Bicep is what unlocks consumer scale-out — and the transactional inbox already makes the resulting redelivery safe (see `docs/KAFKA-IDEMPOTENCY-PLAN.md`).
+- It pre-validates the code changes Event Hubs needs — no AdminClient, SASL on both clients, partitions as a provisioning decision — locally, and before a namespace exists to pay for.
+- It shrinks the stage 1 → stage 2 delta for `events` to an endpoint and a transport.
+- It surfaces protocol incompatibilities early. The `CompressionType.Lz4` both producers set is the cheapest example of the class.
+- The deployment tests survive it nearly unchanged, which is the cheerful surprise. `EventRetryLadderShould` asserts on the consumer **log** rather than reading the DLQ with a Kafka client from the host, and the inbox tests are HTTP plus Npgsql. Almost nothing in that suite is broker-specific, so this swap is cheaper later than it looks.
 
-The producer config is otherwise compatible: `EnableIdempotence = true` is supported by Event Hubs. `CompressionType.Lz4` is not — Event Hubs supports gzip or none.
+### What it costs
+
+- **`RunAsEmulator()` is run-mode only**, so the idiomatic path is unavailable. The emulator has to be hand-modelled as two published `AddContainer` resources — the emulator plus the Azurite it requires — with a hand-built connection string and `Config.json` mounted in. How a mounted config file publishes into the chart is the open question; most likely a ConfigMap authored by hand rather than anything the publisher emits.
+- **It loses local/deployed symmetry rather than gaining it.** `aspire run` and the integration tests stay on real Kafka, so the deployed local cluster would be the only place the emulator appears — a new seam where there is currently none.
+- **The integration tests cannot follow.** `AppHostFixture` gives its in-process consumer a group id of `integration-tests-events-consumer-{Guid.NewGuid()}`, deliberately, so that it does not share the single partition with the real service. Consumer groups on the emulator are declared statically in `Config.json`, so that trick has no equivalent there.
+- **Kafka UI stops working** against it — AdminClient again. That trades an observability tool for a rehearsal.
+- **It is a subset of a subset.** The emulator is dev/test licensed, and its Kafka surface is narrower than Event Hubs', which is narrower than Kafka's. A green emulator is weaker evidence than it feels, and a failure against it may be an emulator bug rather than a real constraint.
+- **It cuts against "cloud-provider agnostic"**, which is one of the three README goals AKS was chosen to serve. Stage 1 would stop being a portable deployment and become an Azure rehearsal.
+- **Capacity.** The emulator alone wants ~2 GB, plus Azurite, on the single Rancher Desktop node the stage 1 notes already call tight.
+
+Worth being explicit about what real Kafka currently costs, since "you now operate a broker" was the argument against it: `events` has no `WithDataVolume`, so the deployed broker is an ephemeral single-node throwaway on an `emptyDir`. At demo scale that is close to free.
+
+### The four code changes, all still outstanding
+
+Four changes stand between this codebase and a Kafka-protocol endpoint that is not Kafka. None has been made, deliberately: every one of them is either inert or slightly worse until such an endpoint exists, and the requirement they would be written against is a guess until there is one to test against.
+
+1. **`CreateTopicIfNotExists` stops working.** Both `src/DotNetDistributedApp.Api/CoreWebApplicationBuilderExtensions.cs` and `src/DotNetDistributedApp.Events.Consumer/ServiceCollectionExtensions.cs` call `.CreateTopicIfNotExists(Topics.Common, 1, 1)` / `CommonDlq`. That is an AdminClient call, and neither the emulator nor Event Hubs offers one. `common` and `common-dlq` have to be declared in the emulator's `Config.json` and provisioned as event hubs on AKS — and the calls have to become conditional rather than disappear, because `aspire run`, the integration tests and the deployed local cluster all rely on them.
+2. **SASL settings must reach both the producer and the consumer.** The producer is built by hand from `GetConnectionString("events")` via `.WithBrokers([cs])`; the consumer likewise. Neither goes through `AddKafkaProducer`/`AddKafkaConsumer`, so nothing wires SASL automatically — `ProducerConfig` and `ConsumerConfig` both need `SecurityProtocol`/`SaslMechanism`/`SaslUsername`/`SaslPassword`, and the cluster needs them too if authenticated topic creation is ever wanted. One wrinkle to expect: KafkaFlow mirrors Confluent's `SecurityProtocol` and `SaslMechanism` as its own enums rather than referencing them, so cluster-level and client-level settings need converting between an identical-looking pair of types.
+3. **The partition count becomes a provisioning decision, not a code one.** Today `1` is hard-coded in those same calls, and that single partition is what caps `events-consumer` at one replica. Declaring more partitions in `Config.json` or Bicep is what unlocks consumer scale-out, and the transactional inbox already makes the resulting redelivery safe (see `docs/KAFKA-IDEMPOTENCY-PLAN.md`). This is the one of the four that would be worth something on plain Kafka as well.
+4. **`CompressionType.Lz4` has to go.** Event Hubs accepts gzip or nothing else. Lz4 is the better codec on real Kafka, so making this change early is a small regression that buys nothing until the endpoint changes — the clearest illustration of why the set waits rather than landing in advance.
+
+The producer config is otherwise compatible in shape: `EnableIdempotence`, `Acks.All` and `MessageSendMaxRetries` all exist on Event Hubs' Kafka surface, though see the tier question below.
+
+One constraint worth knowing **before** designing any of this, because it shapes what "done" can look like: the `ProducerConfig` and `ConsumerConfig` actually handed to librdkafka cannot be observed from a test. `WithProducerConfig` and `WithConsumerConfig` are KafkaFlow extension methods that cast to internal builder types, `ClusterConfigurationBuilder` is internal, and `KafkaFlowConfigurator` keeps the configuration it builds private. A guard test can cover a mapping in isolation, or DI registration order — the same compromise `EventsConsumerRegistrationShould` already documents — but not the values the clients are constructed with.
+
+### The emulator increment, when stage 2 starts
+
+Model the emulator as a **third publish target rather than a replacement**: branch the `events` resource on the same deployment-target parameter the three data resources need anyway, and keep `AddKafka` for run mode and for the plain-Kubernetes target. Then the rehearsal is available when it is wanted, and a failed rehearsal does not cost a working stage 1. Concretely it needs:
+
+- Image `mcr.microsoft.com/azure-messaging/eventhubs-emulator` plus **Azurite** as a required dependency, both as published containers, with `ACCEPT_EULA=Y`
+- `common` and `common-dlq`, their partition counts, and the `events-consumer` group declared in a **`Config.json` mounted into the container** — entities are not created at runtime
+- The four code changes above, behind whatever switch keeps `aspire run`, the integration tests and the plain-Kubernetes target on unauthenticated Kafka with runtime topic creation
+- Kafka UI left pointing at run mode only
+
+Kafka client config for it: `SecurityProtocol.SaslPlaintext`, `SaslMechanism.Plain`, username `$ConnectionString`, password = the emulator connection string, port 9092. **Only producer and consumer APIs are supported** — no AdminClient. Real Event Hubs is the same shape with `SaslSsl`, port 9093, and topics provisioned as event hubs via Bicep. Standard tier is the minimum for Kafka; Premium is recommended for full protocol compatibility.
 
 ### The `RunAsEmulator` trap
 
 `RunAsEmulator()` and `RunAsContainer()` are **run-mode only**. `AddAzureEventHubs("events").RunAsEmulator()` gives you the emulator under `aspire run`, but on **publish** it emits the real Azure Event Hubs resource — the emulator container is not in the chart. The same applies to `AddAzurePostgresFlexibleServer(...).RunAsContainer(...)` and `AddAzureManagedRedis(...).RunAsContainer(...)`.
 
-Stage 1 is a *deployed* local cluster, not `aspire run`, so:
+Stage 1 is a *deployed* local cluster, not `aspire run`, so Postgres, Valkey and Kafka stay as plain `AddPostgres` / `AddValkey` / `AddKafka` containers for the local target and only become `AddAzure*` for AKS. "One AppHost, two targets" is therefore conditional on `builder.ExecutionContext` or a parameter, not just two compute-environment calls. The simplest version: branch the **three data resources** on a deployment-target parameter and keep the six project resources identical across both branches — which is exactly the delta in the mapping table.
 
-- To get the Event Hubs emulator **into the Helm chart**, model it as ordinary published resources — `AddContainer` for the emulator plus one for Azurite, with `Config.json` mounted and `ACCEPT_EULA=Y` — not via `RunAsEmulator`.
-- Postgres and Valkey stay as plain `AddPostgres` / `AddValkey` containers for the local target, and only become `AddAzure*` for AKS.
+### Real Event Hubs: three things to settle before provisioning
 
-So "one AppHost, two targets" is conditional on `builder.ExecutionContext` or a parameter, not just two compute-environment calls. Decide this at the start of stage 1 rather than discovering it at the start of stage 2. The simplest version: branch the **three data resources** on a deployment-target parameter and keep the six project resources identical across both branches — which is exactly the delta identified in the mapping table.
+1. **`EnableIdempotence = true` may be tier-gated.** Both producers set it. Event Hubs' Kafka compatibility documentation puts idempotent producers and transactions in the higher tiers, while this plan commits to Standard. Confirm which before choosing a tier: it is either a tier decision or a code decision, and it is cheaper as the former. `Acks.All` and `MessageSendMaxRetries = int.MaxValue` deserve the same check.
+2. **Consumer groups are pre-declared, not auto-created**, on Event Hubs as much as on the emulator. That is what rules the integration tests out, and it means every group id a deployment uses has to exist in Bicep.
+3. **Standard tier caps retention at 7 days.** `common-dlq` currently doubles as an indefinite audit trail; there it becomes a 7-day window. The inbox table in Postgres is unaffected, and it is the one the tests read.
 
-### Alternative
+### Alternative: keep Kafka in stage 2 as well
 
-Run a real single-broker Kafka (or Redpanda) in both clusters instead, and skip Event Hubs entirely. Zero code change, `CreateTopicIfNotExists` keeps working, and on AKS it is a StatefulSet with a managed-disk PVC. For a demo environment that is defensible; it trades a managed service for a broker you now operate, and the three code changes above never happen.
+Run a real single-broker Kafka (or Redpanda) on AKS too, and skip Event Hubs entirely: a StatefulSet with a managed-disk PVC, and exactly the code stage 1 runs today. For a demo environment that is defensible; it trades a managed service for a broker you now operate. The four code changes above never happen in that world, and nothing in the codebase has been bent towards Event Hubs in anticipation, so this stays a live option rather than a road already half taken.
 
 ---
 
@@ -290,7 +322,7 @@ Ranked by how certainly they will bite:
 2. **`events-consumer` and `scheduled-tasks` have no HTTP server at all** — no `MapDefaultEndpoints`, no Kestrel, in any environment. They need no `readinessProbe` and no `livenessProbe`, not probes pointed elsewhere.
 3. **Dev tools leak into the manifest.** pgAdmin, Kafka UI and MCP Inspector are `WithExplicitStart()` but not `ExcludeFromManifest()`, so they are published and deployed. MCP Inspector is npx/Node-backed — it will try to run in the cluster. On AKS this is unavoidable without the fix, since every compute resource is deployed automatically.
 4. **`WaitForCompletion` does not survive publishing.** The migration service restart-loops as a `Deployment`, and the three services depending on it start against an unmigrated database.
-5. **`CreateTopicIfNotExists`** against an emulator or Event Hubs — see above.
+5. **`CreateTopicIfNotExists`** against an emulator or Event Hubs — see above. Not a live blocker while `events` is a Kafka container, which it is in stage 1 and under `aspire run`; it becomes one the moment that endpoint changes.
 6. **Replica pinning.** `events-consumer`, `scheduled-tasks` and `mcp-server` each need an explicit cap, for three unrelated reasons (one partition; in-process mutex; in-memory sessions). None is expressed today, and none of them should get an HPA.
 7. **Hard-coded service-discovery schemes.** `Api` uses `https://spatial-api` and `http://geoip-api`; `McpServer` uses `https://api`. None uses the `https+http://` fallback form, and `ServiceDefaults` sets `ServiceDiscoveryOptions.AllowedSchemes = ["https"]` unconditionally. Verify against Kubernetes `Service` DNS — `http://geoip-api` against an https-only allowlist is the one to check first, and it will behave the same in both clusters, so stage 1 catches it.
 8. **Untagged `observabilitystack/geoip-api`.** Non-deterministic in any registry-based deploy.

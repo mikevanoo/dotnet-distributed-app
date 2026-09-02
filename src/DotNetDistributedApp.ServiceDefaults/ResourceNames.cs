@@ -14,4 +14,9 @@ public static class ResourceNames
     public const string ScheduledTasks = "scheduled-tasks";
     public const string McpServer = "mcp-server";
     public const string McpInspector = "mcp-inspector";
+
+    // Publish-time only: the Kubernetes compute environment and the volume backing the database.
+    public const string KubernetesEnvironment = "k8s";
+    public const string ApiDatabaseData = "api-database-data";
+    public const string ContainerRegistry = "container-registry";
 }

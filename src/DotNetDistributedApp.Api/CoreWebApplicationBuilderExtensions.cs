@@ -121,7 +121,11 @@ public static class CoreWebApplicationBuilderExtensions
     {
         var spatialApiClient = builder.Services.AddHttpClient<CoordinateConverterClient>(client =>
         {
-            client.BaseAddress = new($"https://{ResourceNames.SpatialApi}");
+            // "https+http" so the http endpoint is used where no https one is registered - in
+            // Kubernetes the chart only publishes services__spatial-api__http__0, because TLS
+            // terminates at the ingress. Plain "https://" resolves nothing there and falls through to
+            // a literal DNS lookup for "spatial-api:443", which does not exist.
+            client.BaseAddress = new($"https+http://{ResourceNames.SpatialApi}");
         });
 
 #pragma warning disable EXTEXP0001

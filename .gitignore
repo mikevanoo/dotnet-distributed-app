@@ -63,3 +63,10 @@ nunit-*.xml
 .idea/
 *.sln.iml
 /DotNetDistributedApp.sln.DotSettings.user
+
+# Aspire publish/deploy output (Helm charts and values, generated on demand).
+# `aspire-output/` is the default when -o is not passed. Note that `.aspire/` itself is NOT ignored:
+# it holds the tracked CLI settings (.aspire/settings.json).
+.aspire-publish*/
+.aspire-deploy*/
+aspire-output/

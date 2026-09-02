@@ -48,7 +48,9 @@ public static class CoreWebApplicationBuilderExtensions
     {
         var weatherApiClient = builder.Services.AddHttpClient<WeatherApiClient>(client =>
         {
-            client.BaseAddress = new($"https://{ResourceNames.Api}");
+            // See the note on the spatial-api client: "https+http" is required so this resolves in
+            // Kubernetes, where only an http endpoint is registered for the API.
+            client.BaseAddress = new($"https+http://{ResourceNames.Api}");
         });
 
 #pragma warning disable EXTEXP0001

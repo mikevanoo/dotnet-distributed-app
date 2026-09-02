@@ -34,8 +34,16 @@ public static class Extensions
 
         builder.Services.Configure<ServiceDiscoveryOptions>(options =>
         {
-            // Restrict to HTTPS
-            options.AllowedSchemes = ["https"];
+            // This only applies to multi-scheme URIs such as "https+http://spatial-api"; a
+            // single-scheme URI ignores it entirely. Order is not preference - the "https+http"
+            // prefix decides that - so https is still chosen wherever an https endpoint is
+            // registered, which is the case for every service under `aspire run`.
+            //
+            // http has to be allowed for deployed environments. In Kubernetes TLS terminates at the
+            // ingress and pod-to-pod traffic is plaintext, so the chart registers only http
+            // endpoints. Restricting this to https left the fallback unusable and inter-service
+            // calls failed to resolve.
+            options.AllowedSchemes = ["https", "http"];
         });
 
         return builder;
@@ -112,19 +120,21 @@ public static class Extensions
 
     public static WebApplication MapDefaultEndpoints(this WebApplication app)
     {
-        // Adding health checks endpoints to applications in non-development environments has security implications.
-        // See https://aka.ms/dotnet/aspire/healthchecks for details before enabling these endpoints in non-development environments.
-        if (app.Environment.IsDevelopment())
-        {
-            // All health checks must pass for app to be considered ready to accept traffic after starting
-            app.MapHealthChecks(HealthEndpointPath);
+        // These endpoints are mapped in every environment because orchestrators need them: Kubernetes
+        // readiness and liveness probes target them, and a deployment where they only exist in
+        // Development never becomes healthy.
+        //
+        // The security concern documented at https://aka.ms/dotnet/aspire/healthchecks is about leaking
+        // the *contents* of a health report. The default response writer emits only the aggregate status
+        // ("Healthy"/"Unhealthy") and no check names, durations or exception detail, so nothing sensitive
+        // is exposed. Keep it that way: if a custom ResponseWriter is ever added here, restrict it to
+        // non-production or put the detailed endpoint behind authorisation.
 
-            // Only health checks tagged with the "live" tag must pass for app to be considered alive
-            app.MapHealthChecks(
-                AlivenessEndpointPath,
-                new HealthCheckOptions { Predicate = r => r.Tags.Contains("live") }
-            );
-        }
+        // All health checks must pass for app to be considered ready to accept traffic after starting
+        app.MapHealthChecks(HealthEndpointPath);
+
+        // Only health checks tagged with the "live" tag must pass for app to be considered alive
+        app.MapHealthChecks(AlivenessEndpointPath, new HealthCheckOptions { Predicate = r => r.Tags.Contains("live") });
 
         return app;
     }

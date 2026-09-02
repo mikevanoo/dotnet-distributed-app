@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System.Globalization;
+using System.Net;
 using System.Text.Json;
 using DotNetDistributedApp.Api.Common.Errors;
 using FluentResults;
@@ -29,7 +30,7 @@ public partial class WeatherApiClient(HttpClient httpClient, ILogger<WeatherApiC
     {
         var requestUri =
             $"/v2.0/weather/stations/{Uri.EscapeDataString(stationKey)}/historic-data"
-            + $"?fromYear={fromYear}&toYear={toYear}";
+            + BuildYearRangeQuery(fromYear, toYear);
 
         return (
             await Get<ResponseDtoOfListOfWeatherStationHistoricDataDto>(
@@ -38,6 +39,33 @@ public partial class WeatherApiClient(HttpClient httpClient, ILogger<WeatherApiC
                 cancellationToken
             )
         ).Map<IReadOnlyList<WeatherStationHistoricDataDto>>(envelope => envelope?.Response?.ToArray() ?? []);
+    }
+
+    /// <summary>
+    /// Builds the year filter, including only the bounds that were actually given.
+    /// </summary>
+    /// <remarks>
+    /// An absent parameter is how the weather API expresses "no bound"; an empty one is a validation failure.
+    /// Interpolating a null <c>int?</c> straight into the query string produces <c>?fromYear=&amp;toYear=</c>,
+    /// which the API answers with 400 - so asking for an unfiltered range failed outright rather than
+    /// returning everything. Years are formatted with the invariant culture because
+    /// <see cref="int.ToString()" /> honours the current culture's digit shapes.
+    /// </remarks>
+    private static string BuildYearRangeQuery(int? fromYear, int? toYear)
+    {
+        var bounds = new List<string>(capacity: 2);
+
+        if (fromYear is not null)
+        {
+            bounds.Add($"fromYear={fromYear.Value.ToString(CultureInfo.InvariantCulture)}");
+        }
+
+        if (toYear is not null)
+        {
+            bounds.Add($"toYear={toYear.Value.ToString(CultureInfo.InvariantCulture)}");
+        }
+
+        return bounds.Count is 0 ? string.Empty : $"?{string.Join('&', bounds)}";
     }
 
     /// <summary>

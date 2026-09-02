@@ -34,6 +34,7 @@ Run these from the repository root.
 - **Run:** `dotnet run --project src/DotNetDistributedApp.AppHost` (starts all services via Aspire)
 - **Test (unit):** `dotnet test --project tests/DotNetDistributedApp.Api.Tests && dotnet test --project tests/DotNetDistributedApp.SpatialApi.Tests && dotnet test --project tests/DotNetDistributedApp.Events.Consumer.Tests && dotnet test --project tests/DotNetDistributedApp.McpServer.Tests`
 - **Test (all, requires Docker):** `dotnet test`
+- **Test (deployed Kubernetes release):** `pwsh ./deployment-test.ps1` or `./deployment-test.sh` - opt-in, needs a deployed cluster; `-ChartOnly` / `--chart-only` asserts on the rendered Helm chart and needs no cluster
 - **Test (code coverage):** `./coverage-report.ps1`
 - **Lint check:** `pwsh ./lint-check.ps1` or `./lint-check.sh` (runs `dotnet format analyzers --verify-no-changes` and `dotnet csharpier check .`)
 - **Lint fix:** `pwsh ./lint-fix.ps1` or `./lint-fix.sh` (runs `dotnet format analyzers` and `dotnet csharpier format .`)
@@ -64,6 +65,7 @@ tests/
   DotNetDistributedApp.Events.Consumer.Tests/  # Unit tests for consumer
   DotNetDistributedApp.McpServer.Tests/     # Unit tests for MCP server tools
   DotNetDistributedApp.IntegrationTests/    # Aspire integration tests (requires Docker)
+  DotNetDistributedApp.DeploymentTests/     # Tests against a deployed Kubernetes release (opt-in)
 ```
 
 ### Key Files
@@ -76,6 +78,7 @@ tests/
 - `.config/dotnet-tools.json` - defines required .NET tools (CSharpier, NSwag, dotnet-coverage, reportgenerator). If tools aren't restored, lint and coverage commands fail.
 - `coverage.runsettings` - controls code coverage exclusions, referenced by the coverage command
 - `src/DotNetDistributedApp.ServiceDefaults/ResourceNames.cs` - shared constants for Aspire resource names used throughout AppHost
+- `docs/K8S-DEPLOYMENT-TESTING-COMMANDS.md` - how to deploy to a local cluster and verify it by hand. Most of its checks are automated in `tests/DotNetDistributedApp.DeploymentTests`; the page says which test class covers each section and keeps the parts that cannot be automated.
 - `docs/KAFKA-IDEMPOTENCY-PLAN.md` - the design record for the consumer's transactional inbox: the options considered, why the DB-backed one was chosen, and the KafkaFlow/EF Core behaviour each decision rests on. The constraints it produced are summarised in the sections above; read it when you need the reasoning rather than the rule.
 
 ## Architecture
@@ -264,6 +267,7 @@ Integration tests use `Aspire.Hosting.Testing` to spin up the full `AppHost` wit
 - Add `Console.WriteLine` or use string interpolation in log calls
 - Use block-scoped namespaces
 - Run integration tests as part of quick feedback loops (they require Docker and are slow)
+- Add the deployment tests to CI, or make them run without their `RUN_DEPLOYMENT_TESTS` / `RUN_CHART_TESTS` opt-in - they need a deployed cluster and they write to it
 - Register a second `IMessageHandler<T>` for a payload type that already has one, or register message handlers without `WithHandlerLifetime(InstanceLifetime.Scoped)` - see [Kafka Consumer Idempotency (Constraints)](#kafka-consumer-idempotency-constraints)
 - Reorder the consumer middlewares so the deserializer wraps `RetryDeadLetterMiddleware`, add a serializer to the DLQ producer, or swap `StrictMessageTypeResolver` back to KafkaFlow's default - each one silently loses messages, see [Kafka Consumer Data Loss (Constraints)](#kafka-consumer-data-loss-constraints)
 - Move `ConsumerMetricsMiddleware` outside the deserializer or inside `WeatherDeduplicationMiddleware` - the first makes its counters untaggable, the second breaks a cast, see [Kafka Consumer Metrics (Constraints)](#kafka-consumer-metrics-constraints)

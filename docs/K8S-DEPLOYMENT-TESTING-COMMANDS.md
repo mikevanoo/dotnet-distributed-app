@@ -9,6 +9,25 @@ not.
 All commands are PowerShell 7 (`pwsh`). Note that `curl` is not an alias for `Invoke-WebRequest` in
 PowerShell 7, so the native cmdlets are used throughout.
 
+## Most of this is automated
+
+`tests/DotNetDistributedApp.DeploymentTests` runs almost everything below as assertions. Deploy, then:
+
+```powershell
+./deployment-test.ps1                # chart + cluster
+./deployment-test.ps1 -ChartOnly     # renders the chart and asserts on it; no cluster needed
+```
+
+The tests are opt-in - a plain `dotnet test` discovers and skips them, so they never run in CI - and
+the cluster tier refuses to start unless `kubectl config current-context` matches
+`DeploymentTests__ExpectedKubeContext` (default `rancher-desktop`). Point them elsewhere with
+`DeploymentTests__BaseUrl` and friends; that is the whole of what changes for AKS.
+
+Prefer the tests for the checks they cover, and keep this page for the parts they cannot replace:
+deploying in the first place, teardown, driving MCP from a real client, and any hands-on exploration
+of a deployment that is misbehaving. Where a section is fully automated it says which test class
+covers it.
+
 ---
 
 ## Before you start
@@ -64,6 +83,8 @@ kubectl get pods -n $N
 kubectl get svc,ingress,pvc -n $N
 ```
 
+Automated by `Cluster/DeployedWorkloadsShould` and `Cluster/MigrationJobLogShould`.
+
 Expected: every pod `Running` **except** `api-database-migrations-job-*`, which must be `Completed`
 with **0 restarts**. If it shows restarts it has been published as a Deployment rather than a Job -
 see `PublishAsKubernetesJob` in `src/DotNetDistributedApp.AppHost/KubernetesBuilderExtensions.cs`.
@@ -97,6 +118,8 @@ port-forwarding below.
 
 ### Health
 
+Automated by `Api/HealthEndpointsShould`.
+
 ```powershell
 (Invoke-WebRequest http://localhost/health -SkipHttpErrorCheck).StatusCode   # all checks
 (Invoke-WebRequest http://localhost/alive  -SkipHttpErrorCheck).StatusCode   # liveness only
@@ -106,6 +129,8 @@ Both return 200 in every environment. They used to be Development-only, which me
 404 against a deployed pod.
 
 ### Weather
+
+Automated by `Api/WeatherEndpointsShould` and `Api/DeployedDependencyChainShould`.
 
 Seeded station keys: `heathrow`, `stornoway`.
 
@@ -147,9 +172,17 @@ geoData country: US
 - `geoData country` empty → `geoip-api` unreachable
 - seconds rather than milliseconds → a dependency is timing out and burning its retry budget
 
-`historic-data` is output-cached for 30s, so the second call should be markedly faster.
+`historic-data` is output-cached for 30s, so the second call should be markedly faster. A firmer
+check than the clock: the envelope's `metadata.timestamp` is stamped when the response is built, so
+two calls within the window come back **byte-identical**. That is what
+`Api/WeatherEndpointsShould` asserts, timing being far too noisy on a local cluster.
 
 ### Events
+
+Automated by `Api/EventEndpointsShould`, `Events/TransactionalInboxShould` and
+`Events/EventRetryLadderShould`. The tests read the inbox with Npgsql over a port forward rather than
+`psql` in the pod, and assert on count deltas: the API generates the event id and partition key
+server-side, so nothing in the HTTP response identifies the row a call will produce.
 
 ```powershell
 Invoke-RestMethod http://localhost/v1/events/simple-event -Method Post -ContentType 'application/json' -Body '{"value":"hello"}'
@@ -198,6 +231,8 @@ left-hand port is the local one and is arbitrary - except for the dashboard, whe
 
 ### spatial-api
 
+Automated by `SpatialApi/DeployedCoordinateConverterShould`.
+
 ```powershell
 $pf = Start-Process kubectl -PassThru -ArgumentList 'port-forward', '-n', $N, 'svc/spatial-api-service', '8081:8080'
 Start-Sleep -Seconds 3
@@ -211,6 +246,9 @@ Stop-Process -Id $pf.Id
 Note the grid-reference endpoint returns `easting` / `northing` numbers, not a grid-reference string.
 
 ### MCP server
+
+Automated by `McpServer/DeployedMcpServerShould`, which drives the real MCP client SDK and so needs
+none of the by-hand protocol work below.
 
 No ingress and no UI - it speaks MCP over streamable HTTP at `/mcp`. Start with the health endpoint,
 which is plain HTTP and rules out the port-forward before you debug the protocol:
@@ -277,19 +315,31 @@ prove the chain from a second pod through `api` to `spatial-api`. If `api` is un
 resilience fallback returns 204 and the tool fails with *"The weather API could not be reached"* -
 a readable message rather than a 500.
 
-Two failure shapes are worth provoking, because the second is the confusing one:
+Two failure shapes are worth provoking:
 
 ```powershell
-# readable: a validation failure raised as an McpException reaches the caller intact
+# a validation failure the tool raises itself keeps its detail
 (Invoke-Mcp '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"get_station_historic_data","arguments":{"stationKey":"heathrow","fromYear":1960,"toYear":1950}}}').result.content.text
 
-# opaque: any other exception is replaced with "An error occurred invoking '<tool>'."
+# a missing required argument
 (Invoke-Mcp '{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"get_station_historic_data","arguments":{"stationKey":"heathrow"}}}').result.content.text
 ```
 
-The second fails because `fromYear` and `toYear` are nullable but have no default value, so the
-generated schema still marks them required. Pass `"fromYear":null,"toYear":null` explicitly for an
-unfiltered query. Whenever a call returns the opaque message, the pod log has the real exception:
+Both come back prefixed with `An error occurred invoking '<tool>':` - as of
+`ModelContextProtocol` 2.2.0 the SDK **prepends** that rather than replacing the message, so the
+detail after the colon is still the useful part. `McpServer/DeployedMcpServerShould` asserts on that
+detail rather than on the prefix being absent, for exactly that reason.
+
+The second call fails because `fromYear` and `toYear` are nullable but have no default value, so the
+generated schema still marks them required.
+
+> **Passing explicit nulls does not work either.** `WeatherApiClient` always appends
+> `?fromYear={fromYear}&toYear={toYear}`, so nulls become empty query values and the weather API
+> answers 400 - the tool then reports *"The weather API rejected the request with 400 BadRequest"*.
+> There is currently **no** way to ask `get_station_historic_data` for an unfiltered range; pass real
+> years. Fixing it means omitting the parameters from the query string when they are null.
+
+Whenever a call returns a message you cannot place, the pod log has the real exception:
 
 ```powershell
 kubectl logs -n $N deploy/mcp-server-deployment --tail=100 | Select-String -Pattern 'threw an unhandled|IsError = True'
@@ -310,6 +360,8 @@ Stop-Process -Id $pf.Id
 ```
 
 ### Aspire dashboard
+
+Automated by `Dashboard/AspireDashboardShould`, apart from actually looking at the pages.
 
 The dashboard is deployed as `k8s-dashboard` and is the OTLP collector for the whole release - every
 service gets `OTEL_EXPORTER_OTLP_ENDPOINT=http://k8s-dashboard-service:18889`. Three ports: **18888**
@@ -437,5 +489,6 @@ clears any that were missed.
 | Dashboard Resources page is empty | Expected - standalone dashboard, no resource service. Only the telemetry pages carry data. |
 | Dashboard reachable but no traces | Check the OTLP receiver with the 18890 probe above. A 200 there means the problem is the sending pod's exporter. |
 | MCP requests after `initialize` fail | The `Mcp-Session-Id` header is not being echoed, or the pod restarted and lost the in-memory session. Re-run the handshake. |
+| `Select-String` finds nothing in a pod log that obviously contains the text | The services set Serilog's console sink to `AnsiConsoleTheme.Code` with `applyThemeToRedirectedOutput: true`, so every templated parameter in a log message is wrapped in SGR escape sequences. `dead letter topic common-dlq` is really `dead letter topic <esc>common-dlq<esc>`, and `attempt 1/4` is `attempt <esc>1<esc>/<esc>4<esc>`. Match only the literal part of a template, or strip the codes first - `ClusterFixture.GetPodLogAsync` does. |
 | MCP reply is an unparseable string | The response is SSE, not JSON. Accept `text/event-stream` and strip the `data: ` prefix. |
 | MCP tool returns `An error occurred invoking '<tool>'.` | The SDK replaces the message of every exception except `McpException`. Usually a missing required argument - `fromYear` / `toYear` are nullable but have no default, so pass explicit nulls. The pod log has the real exception. |

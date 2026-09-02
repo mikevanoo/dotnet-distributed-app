@@ -13,6 +13,8 @@
         <File Path="global.json" />
         <File Path="lint-check.ps1" />
         <File Path="lint-check.sh" />
+        <File Path="deployment-test.ps1" />
+        <File Path="deployment-test.sh" />
         <File Path="lint-fix.ps1" />
         <File Path=".config\dotnet-tools.json" />
         <File Path=".github/workflows/codeql.yml" />
@@ -32,6 +34,7 @@
     </Folder>
     <Folder Name="/tests/">
         <Project Path="tests/DotNetDistributedApp.Api.Tests\DotNetDistributedApp.Api.Tests.csproj" />
+        <Project Path="tests/DotNetDistributedApp.DeploymentTests\DotNetDistributedApp.DeploymentTests.csproj" />
         <Project Path="tests/DotNetDistributedApp.McpServer.Tests\DotNetDistributedApp.McpServer.Tests.csproj" />
         <Project Path="tests/DotNetDistributedApp.Events.Consumer.Tests\DotNetDistributedApp.Events.Consumer.Tests.csproj" />
         <Project Path="tests\DotNetDistributedApp.IntegrationTests\DotNetDistributedApp.IntegrationTests.csproj" />

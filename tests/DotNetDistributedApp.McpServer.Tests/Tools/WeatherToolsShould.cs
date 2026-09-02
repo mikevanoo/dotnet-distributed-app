@@ -202,6 +202,30 @@ public class WeatherToolsShould
         actual.Coverage.MonthsReturned.Should().Be(1);
     }
 
+    /// <summary>
+    /// A null year means "no bound", which the weather API expresses by the parameter being absent. Sending
+    /// it as an empty value instead is a different request: the API binds "" to a nullable int as a
+    /// validation failure and answers 400, so an unfiltered range failed outright.
+    /// </summary>
+    [Theory]
+    [InlineData(null, null, "/v2.0/weather/stations/heathrow/historic-data")]
+    [InlineData(1950, null, "/v2.0/weather/stations/heathrow/historic-data?fromYear=1950")]
+    [InlineData(null, 1960, "/v2.0/weather/stations/heathrow/historic-data?toYear=1960")]
+    [InlineData(1950, 1960, "/v2.0/weather/stations/heathrow/historic-data?fromYear=1950&toYear=1960")]
+    public async Task OmitAYearFilterFromTheQueryStringWhenItIsNotSet(int? fromYear, int? toYear, string expectedUri)
+    {
+        var requestedUris = new List<string>();
+        var tools = CreateTools(request =>
+        {
+            requestedUris.Add(request.RequestUri!.PathAndQuery);
+            return JsonResponse(HttpStatusCode.OK, new { response = Array.Empty<object>() });
+        });
+
+        await tools.GetWeatherStationHistoricData("heathrow", fromYear, toYear, TestContext.Current.CancellationToken);
+
+        requestedUris.Should().ContainSingle().Which.Should().Be(expectedUri);
+    }
+
     private WeatherTools CreateTools(Func<HttpRequestMessage, HttpResponseMessage> handler)
     {
         var httpClient = new HttpClient(new StubHttpMessageHandler(handler))

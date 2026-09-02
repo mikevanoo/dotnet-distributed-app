@@ -331,13 +331,15 @@ detail after the colon is still the useful part. `McpServer/DeployedMcpServerSho
 detail rather than on the prefix being absent, for exactly that reason.
 
 The second call fails because `fromYear` and `toYear` are nullable but have no default value, so the
-generated schema still marks them required.
+generated schema still marks them required. Pass explicit nulls for an unfiltered range:
 
-> **Passing explicit nulls does not work either.** `WeatherApiClient` always appends
-> `?fromYear={fromYear}&toYear={toYear}`, so nulls become empty query values and the weather API
-> answers 400 - the tool then reports *"The weather API rejected the request with 400 BadRequest"*.
-> There is currently **no** way to ask `get_station_historic_data` for an unfiltered range; pass real
-> years. Fixing it means omitting the parameters from the query string when they are null.
+```powershell
+(Invoke-Mcp '{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"get_station_historic_data","arguments":{"stationKey":"heathrow","fromYear":null,"toYear":null}}}').result.structuredContent.stationHistoricData.Count
+```
+
+That path used to answer 400: `WeatherApiClient` appended both years unconditionally, so a null
+became an empty query value and the weather API rejected it. It now omits a bound that was not given,
+which is how the API expresses "no bound".
 
 Whenever a call returns a message you cannot place, the pod log has the real exception:
 

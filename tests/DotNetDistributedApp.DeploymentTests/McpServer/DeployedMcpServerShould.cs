@@ -154,6 +154,32 @@ public class DeployedMcpServerShould(ClusterFixture clusterFixture) : IAsyncLife
     }
 
     /// <summary>
+    /// The unfiltered range: both years null. Worth its own test because it used to fail - the client
+    /// interpolated the nulls into the query string, and the weather API answers an empty
+    /// <c>?fromYear=&amp;toYear=</c> with 400. The parameters are omitted now.
+    /// </summary>
+    [DeploymentFact]
+    public async Task ReturnEveryReadingWhenNoYearFilterIsGiven()
+    {
+        var result = await CallAsync(
+            "get_station_historic_data",
+            new Dictionary<string, object?>
+            {
+                ["stationKey"] = "heathrow",
+                // Nullable but with no default, so the generated schema still marks them required:
+                // omitting them fails the call, and explicit nulls are how an unbounded range is asked for.
+                ["fromYear"] = null,
+                ["toYear"] = null,
+            }
+        );
+
+        result.IsError.Should().NotBe(true, "the tool said: {0}", TextOf(result));
+        Deserialise<WeatherStationHistoricDataDto>(result)
+            .StationHistoricData.Should()
+            .HaveCountGreaterThan(132, "an unfiltered range covers far more than the eleven years above");
+    }
+
+    /// <summary>
     /// A failure the tool raises itself keeps its detail: the message names the offending parameters and
     /// the values passed to them, which is the only thing that lets a calling model correct its own
     /// request. The SDK prefixes it with "An error occurred invoking '&lt;tool&gt;'" rather than
